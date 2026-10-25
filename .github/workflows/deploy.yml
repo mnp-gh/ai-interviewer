@@ -43,6 +43,12 @@ jobs:
         # GHCR names must be lowercase; derived from the repo so a rename doesn't break deploys.
         run: echo "IMAGE_REPO=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
       - uses: docker/setup-buildx-action@v3
+      # The base images are Docker Hardened Images, pulled with a Docker Hub account.
+      - uses: docker/login-action@v3
+        with:
+          registry: dhi.io
+          username: ${{ secrets.DHI_USERNAME }}
+          password: ${{ secrets.DHI_TOKEN }}
       - uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -51,6 +57,7 @@ jobs:
       - uses: docker/build-push-action@v6
         with:
           context: .
+          file: deploy/Dockerfile
           target: server
           push: true
           tags: ${{ env.IMAGE_REPO }}/server:${{ github.sha }},${{ env.IMAGE_REPO }}/server:latest
@@ -59,6 +66,7 @@ jobs:
       - uses: docker/build-push-action@v6
         with:
           context: .
+          file: deploy/Dockerfile
           target: web
           push: true
           build-args: VITE_TURNSTILE_SITE_KEY=${{ vars.VITE_TURNSTILE_SITE_KEY }}
@@ -97,15 +105,16 @@ jobs:
           echo "SITE_ADDRESS=$SITE_ADDRESS" > config/.env
           jq -nr '(env.VARS | fromjson) + (env.SECRETS | fromjson)
             | to_entries[]
-            | select(.key | test("^(DEPLOY_|VITE_|SITE_ADDRESS$|github_token$)") | not)
+            | select(.key | test("^(DEPLOY_|DHI_|VITE_|SITE_ADDRESS$|github_token$)") | not)
             | if (.value | test("\n")) then error("\(.key) spans several lines") else "\(.key)=\(.value)" end' > config/server/.env
           echo "Server variables: $(cut -d= -f1 config/server/.env | sort | tr '\n' ' ')"
       - name: Copy the compose file and configuration
         run: |
           target="${{ vars.DEPLOY_USER }}@${{ vars.DEPLOY_HOST }}:${{ vars.DEPLOY_PATH }}"
-          ssh "${{ vars.DEPLOY_USER }}@${{ vars.DEPLOY_HOST }}" "mkdir -p '${{ vars.DEPLOY_PATH }}/server'"
-          scp docker-compose.yml "$target/"
-          scp config/.env "$target/.env.new"
+          # The same layout as the repo, so the compose file finds ../server/.env in both places.
+          ssh "${{ vars.DEPLOY_USER }}@${{ vars.DEPLOY_HOST }}" "mkdir -p '${{ vars.DEPLOY_PATH }}/deploy' '${{ vars.DEPLOY_PATH }}/server'"
+          scp deploy/docker-compose.yml "$target/deploy/"
+          scp config/.env "$target/deploy/.env.new"
           scp config/server/.env "$target/server/.env.new"
       - name: Pull and restart
         run: |
@@ -115,7 +124,8 @@ jobs:
             'bash -s' <<'SCRIPT'
           set -euo pipefail
           cd "$DEPLOY_PATH"
-          mv .env.new .env && mv server/.env.new server/.env
+          mv deploy/.env.new deploy/.env && mv server/.env.new server/.env
+          cd deploy
           export IMAGE_REPO IMAGE_TAG
           # The job's token expires when the job ends, so the login is logged out right after the pull.
           echo "$REGISTRY_TOKEN" | docker login ghcr.io -u "$REGISTRY_USER" --password-stdin

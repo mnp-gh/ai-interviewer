@@ -2,7 +2,7 @@
 
 The site and the API run as two containers on a free Oracle Cloud VM (Ampere, arm64): the API (`server`) and an Nginx container (`web`) that serves the built client and proxies `/api` to the API. The VM's own Nginx terminates HTTPS with a Certbot certificate and forwards everything to the web container on localhost. Locally, Vite proxies `/api` to the server. Sharing one origin removes CORS entirely (other websites' pages can't call the API), removes the need for an API URL in the client, and keeps one deployment.
 
-GitHub Actions deploys every push to `main`: it runs the checks, builds both images on an arm64 runner, pushes them to GHCR tagged with the commit, and has the VM pull and restart them. Images are immutable per commit, so rerunning an older deploy rolls back. The VM holds only configuration (`docker-compose.yml` and two env files).
+GitHub Actions deploys every push to `main`: it runs the checks, builds both images on an arm64 runner, pushes them to GHCR tagged with the commit, and has the VM pull and restart them. Images are immutable per commit, so rerunning an older deploy rolls back. The VM holds only configuration (`deploy/docker-compose.yml` and two env files). The images are built on Docker Hardened Images, which run as non-root and ship no shell or package manager, so a compromised container has less to work with.
 
 A long-running server suits the app: one MongoDB connection pool, no cold starts, and no time limit on streamed replies or PDF parsing.
 

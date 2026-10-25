@@ -6,6 +6,7 @@
 #
 # The file uses server/.env syntax (KEY=value, # comments). Each key goes where the workflow expects it:
 #   VITE_*                              repository variable (read when the image is built; public)
+#   DHI_USERNAME, DHI_TOKEN             repository secret (pulls the Docker Hardened base images)
 #   SITE_ADDRESS, DEPLOY_HOST/USER/PATH,
 #   budgets, MAINTENANCE_MODE, PARSE_MODEL   production environment variable (plain settings)
 #   everything else                     production environment secret (keys, connection strings, tokens)
@@ -18,7 +19,7 @@ ENVIRONMENT=production
 [ -f "$FILE" ] || { echo "No $FILE: create it with KEY=value lines (see server/.env.example)." >&2; exit 1; }
 REPO=$(gh repo view --json nameWithOwner -q .nameWithOwner)
 
-# Set by docker-compose.yml on the server: a value here would be ignored.
+# Set by deploy/docker-compose.yml on the server: a value here would be ignored.
 SKIP='^(HOST|PORT|PUBLIC_ORIGIN|CLIENT_IP_HEADER)$'
 PLAIN='^(SITE_ADDRESS|DEPLOY_HOST|DEPLOY_USER|DEPLOY_PATH|DAILY_[A-Z_]+|AI_CALLS_PER_MINUTE|ACCOUNT_ACTIONS_PER_MINUTE|MAINTENANCE_MODE|PARSE_MODEL)$'
 
@@ -33,9 +34,12 @@ while IFS= read -r line || [ -n "$line" ]; do
   [[ $value =~ ^\"(.*)\"$ || $value =~ ^\'(.*)\'$ ]] && value=${BASH_REMATCH[1]}
 
   if [[ $key =~ $SKIP ]]; then
-    echo "  $key: skipped (docker-compose.yml sets it)"
+    echo "  $key: skipped (deploy/docker-compose.yml sets it)"
   elif [ -z "$value" ]; then
     echo "  $key: skipped (empty)"
+  elif [[ $key == DHI_* ]]; then
+    printf '%s' "$value" | gh secret set "$key" --repo "$REPO" >/dev/null
+    echo "  $key: repository secret"
   elif [[ $key == VITE_* ]]; then
     gh variable set "$key" --repo "$REPO" --body "$value" >/dev/null
     echo "  $key: repository variable"
