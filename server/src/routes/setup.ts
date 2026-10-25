@@ -19,7 +19,7 @@ import { researchRole } from "../research/briefing";
 import type { SearchClient } from "../research/search";
 import { createMeter, type Budget } from "../usage/meter";
 
-/** Vercel caps request bodies at 4.5 MB. */
+/** Comfortably above any real resume; the proxies allow 5 MB bodies (deploy/nginx.conf, deploy/web.conf). */
 export const MAX_PDF_BYTES = 4 * 1024 * 1024;
 /** Resumes are a few pages; anything far longer isn't one, and costs CPU to parse. */
 const MAX_PDF_PAGES = 20;

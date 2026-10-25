@@ -8,7 +8,7 @@ useDatabase();
 
 afterEach(() => {
   delete process.env.MAINTENANCE_MODE;
-  delete process.env.VERCEL;
+  delete process.env.CLIENT_IP_HEADER;
 });
 
 const humanToken = "valid-token";
@@ -138,15 +138,15 @@ describe("AI usage budget", () => {
   });
 
   it("counts an IPv6 client's whole /64 as one network", async () => {
-    process.env.VERCEL = "1";
+    process.env.CLIENT_IP_HEADER = "x-real-ip";
     const { app } = testApp({ budget: budget({ interviewsPerIp: 1 }) });
-    await asCandidate(app).post("/api/interviews", setupFixture()).set("X-Vercel-Forwarded-For", "2001:db8:1:2::1").expect(201);
+    await asCandidate(app).post("/api/interviews", setupFixture()).set("X-Real-IP", "2001:db8:1:2::1").expect(201);
     const res = await asCandidate(app)
       .post("/api/interviews", setupFixture())
-      .set("X-Vercel-Forwarded-For", "2001:db8:1:2:ffff:ffff:ffff:ffff")
+      .set("X-Real-IP", "2001:db8:1:2:ffff:ffff:ffff:ffff")
       .expect(429);
     expect(res.body.code).toBe("DAILY_LIMIT");
-    await asCandidate(app).post("/api/interviews", setupFixture()).set("X-Vercel-Forwarded-For", "2001:db8:1:3::1").expect(201);
+    await asCandidate(app).post("/api/interviews", setupFixture()).set("X-Real-IP", "2001:db8:1:3::1").expect(201);
   });
 });
 
@@ -217,7 +217,7 @@ describe("HTTP hardening", () => {
     expect(res.headers["x-powered-by"]).toBeUndefined();
   });
 
-  it("ignores spoofed X-Forwarded-For outside Vercel", async () => {
+  it("ignores spoofed forwarding headers without a trusted proxy header", async () => {
     const { app } = testApp({ budget: budget({ interviewsPerIp: 1 }) });
     await startInterview(asCandidate(app));
     const spoofed = await asCandidate(app)
@@ -226,13 +226,20 @@ describe("HTTP hardening", () => {
       .expect(429);
     expect(spoofed.body.code).toBe("DAILY_LIMIT");
   });
+});
 
-  it("uses Vercel's own client IP header on Vercel", async () => {
-    process.env.VERCEL = "1";
+describe("behind our own reverse proxy", () => {
+  it("uses the client IP header the proxy sets, and only that one", async () => {
+    process.env.CLIENT_IP_HEADER = "X-Real-IP";
     const { app } = testApp({ budget: budget({ interviewsPerIp: 1 }) });
-    await asCandidate(app).post("/api/interviews", setupFixture()).set("X-Vercel-Forwarded-For", "198.51.100.1").expect(201);
-    await asCandidate(app).post("/api/interviews", setupFixture()).set("X-Vercel-Forwarded-For", "198.51.100.2").expect(201);
-    await asCandidate(app).post("/api/interviews", setupFixture()).set("X-Vercel-Forwarded-For", "198.51.100.1").expect(429);
+    await asCandidate(app).post("/api/interviews", setupFixture()).set("X-Real-IP", "198.51.100.1").expect(201);
+    await asCandidate(app).post("/api/interviews", setupFixture()).set("X-Real-IP", "198.51.100.2").expect(201);
+    const spoofed = await asCandidate(app)
+      .post("/api/interviews", setupFixture())
+      .set("X-Real-IP", "198.51.100.1")
+      .set("X-Forwarded-For", "203.0.113.9")
+      .expect(429);
+    expect(spoofed.body.code).toBe("DAILY_LIMIT");
   });
 });
 

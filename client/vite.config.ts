@@ -5,7 +5,7 @@ import { defineConfig } from "vite";
 export default defineConfig({
   plugins: [react()],
   server: {
-    // In dev the API runs separately; in production Vercel serves it from the same origin.
+    // In dev the API runs separately; in production the web container proxies it on the same origin.
     proxy: {
       "/api": {
         // 127.0.0.1, not localhost: the server listens on IPv4, and some Node versions resolve localhost to ::1 first.

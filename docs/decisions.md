@@ -64,22 +64,22 @@ harder-to-reverse ones also have a decision record in [`adr/`](adr/). Terms such
 | Keeping history | **Passkey or recovery code**, no email. Restoring moves the browser's unsaved interviews in; signing out needs a saved history. | Lets history follow the candidate without personal details ([ADR 0010](adr/0010-passkeys-and-recovery-codes-to-keep-history.md)). |
 | Bot check | **Cloudflare Turnstile** on Analyse, Start interview and Practise again. | The most effective single protection; invisible to most people. |
 | Budgets | AI tokens: **150k/day per candidate, 300k/day per IP**, plus **20 AI calls/minute**; **5 interviews/day** per candidate and per IP; global **1.5M AI tokens and 30 web searches a day**. All configurable. | Free quotas are measured in tokens as well as requests, and one call can be 20× another, so daily budgets count tokens; the burst limit stays per call because providers rate-limit requests per minute; global caps keep the app under free quotas ([ADR 0007](adr/0007-usage-budgets-and-bot-check-instead-of-sign-in.md)). |
-| Other hardening | No CORS (one origin), strict CSP and security headers, unspoofable client IP on Vercel, input validation, PDF size and page caps, a maintenance switch. | See [`security.md`](security.md). |
+| Other hardening | No CORS (one origin), strict CSP and security headers, unspoofable client IP (set by our own proxy), input validation, PDF size and page caps, a maintenance switch. | See [`security.md`](security.md). |
 
 ## Platform
 
 | Decision | Choice | Why |
 |---|---|---|
-| Hosting | **One Vercel project**, API under `/api`. Cloudflare and Render were considered and rejected for now. | Free, already working, reuses database connections, no cold starts ([ADR 0003](adr/0003-single-vercel-project.md)). |
+| Hosting | **Docker Compose** on a free Oracle Cloud VM, deployed by GitHub Actions on every push to `main`: the API plus an Nginx container serving the client and proxying `/api`, behind the host's Nginx and Certbot. | Still one origin and no CORS; a long-running server with no function time limits; HTTPS stays with the VM's existing Nginx ([ADR 0003](adr/0003-docker-on-one-vm.md)). Caddy was tried for the web container, but its main draw, automatic HTTPS, is the host's job here, so one web server everywhere won. |
 | Server framework | **Fastify** (replaced Express). Plugins scope hooks and parsers to where they apply: the PDF parser only on setup routes, the database connection only on routes that need it. | Product owner's choice. Fastify is faster and its encapsulated plugins fit the API's shape; request validation stays with zod, so the change was confined to the HTTP layer. |
 | Database | **MongoDB Atlas (free tier)**, one document per interview; old data discarded. | Mongoose was already in use, and the document shape fits ([ADR 0002](adr/0002-one-document-per-interview.md)). |
 | Repository | **pnpm workspace** (`client`, `server`) on **Node 24+**, with a committed lockfile. | One install and consistent versions everywhere. Node 20 reached end of life in April 2026. |
 | UI | Kept **MUI**, with a themed design, light/dark mode and a mobile-friendly layout. | Already in use; polish beats a library switch. |
 | Shared types | The client imports API types from the server's schemas. | One source of truth ([ADR 0008](adr/0008-client-types-come-from-server-schemas.md)). |
-| Streaming format | **NDJSON over POST.** | Works with request bodies and serverless functions ([ADR 0009](adr/0009-ndjson-streaming-over-post.md)). |
+| Streaming format | **NDJSON over POST.** | Works with request bodies and through plain HTTP proxies ([ADR 0009](adr/0009-ndjson-streaming-over-post.md)). |
 | Tests | **Vitest** with a scripted fake AI and an in-memory MongoDB; no real AI calls in tests. | Fast, free and deterministic. |
 | Workflow | Work on the `refine` branch in logical commits, **not pushed** until the product owner says so. | Reviewable history; nothing published by surprise. |
 
 ## Still open
 
-- **First deploy to Vercel.** Everything is ready (see the README's deployment section and the release checklist in [`security.md`](security.md)); it needs the product owner's Vercel and Cloudflare accounts.
+- **Go live.** The app runs on the Oracle VM; still needed: ports 80/443 opened in the OCI Security List, an HTTPS certificate, the CI deploy key, and Turnstile keys (see the README's deployment section and the release checklist in [`security.md`](security.md)).

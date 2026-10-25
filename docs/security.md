@@ -24,21 +24,22 @@ All budgets are environment variables (see `server/.env.example`).
 
 - **Secrets stay on the server.** AI, search and database keys are only read by the API; the browser
   only ever sees the public Turnstile site key. No secret has ever been committed (history checked).
-- **Client IP can't be spoofed.** On Vercel the IP comes from `x-vercel-forwarded-for`, which Vercel
-  sets itself; elsewhere client-supplied forwarding headers are ignored.
+- **Client IP can't be spoofed.** In production it comes from `CLIENT_IP_HEADER` (`X-Real-IP`, which the
+  host's Nginx overwrites), and the containers listen on localhost only. Without it (local dev)
+  client-supplied forwarding headers are ignored.
 - **No CORS.** The site and API share one origin, so other websites can't call the API from a browser.
 - **Security headers.** A strict Content Security Policy (own scripts plus Cloudflare's challenge only),
-  HSTS, no framing, `nosniff` (`vercel.json`); the API adds `no-store` and hides the framework.
+  HSTS, no framing, `nosniff` (`deploy/web.conf`); the API adds `no-store` and hides the framework.
 - **Input validation.** Every request body is validated (zod), ids are format-checked, PDFs are capped
   at 4 MB and 20 pages and discarded after text extraction.
 - **Prompt injection.** Web pages are fenced as untrusted data, links in briefings only come from search
   results, and the AI has no tools. A candidate can only steer the AI within their own interview; the
   coach declines unrelated requests.
 - **Data isolation.** Every interview is scoped to its browser's random candidate id (a 122-bit UUID),
-  issued by the server as an `HttpOnly; SameSite=Strict` cookie on `/api` (`Secure` on Vercel), so page
+  issued by the server as an `HttpOnly; SameSite=Strict` cookie on `/api` (`Secure` in production), so page
   scripts can't read it.
 - **Saved history.** Passkeys are verified with WebAuthn (single-use challenges, 5-minute expiry, bound to
-  the production domain on Vercel, from `VERCEL_PROJECT_PRODUCTION_URL`, never the request's Host), up to
+  the production domain, `PUBLIC_ORIGIN`, never the request's Host), up to
   10 per history. Recovery codes have 100 random bits, are stored only as a SHA-256 hash, and restoring
   with one needs the bot check (`server/src/account/`). Browsers from before the cookie can carry their id
   over in a header, but only while that history isn't saved: a saved one needs its passkey or code.
@@ -62,24 +63,26 @@ token is kept only in that browser tab. Days are UTC, and counters are kept two 
   site data loses access. Anyone with access to the browser, or to a candidate's passkey or recovery
   code, can see them. An id never changes: signing out or replacing the recovery code doesn't revoke a
   copied cookie.
-- **Passkeys only work on the production domain** on Vercel, not on preview deployments.
+- **Passkeys only work on the production domain** (`SITE_ADDRESS`); changing it strands them, though recovery codes still work.
 - **Restoring on a shared computer** also moves in that browser's unsaved interviews, which may be a
   previous person's.
 
 ## Release checklist
 
 1. **Turnstile:** create a widget in the Cloudflare dashboard for your production domain. Set
-   `TURNSTILE_SECRET_KEY` (server) and `VITE_TURNSTILE_SITE_KEY` (client build) in Vercel.
+   `TURNSTILE_SECRET_KEY` as a secret in the GitHub `production` environment and `VITE_TURNSTILE_SITE_KEY`
+   as a repository variable.
 2. **MongoDB Atlas:**
    - Create a database user with **readWrite on this database only**, and a long random password.
-   - Network access: Vercel functions don't have fixed IPs, so allow `0.0.0.0/0` and rely on the
-     credentials; never reuse this user elsewhere.
-3. **Vercel:** set every server variable from `server/.env.example` for Production. Leave
-   **Automatically expose System Environment Variables** on: passkeys need `VERCEL_PROJECT_PRODUCTION_URL`. Turn on
-   **Spend Management** with a hard limit, so a traffic spike can never produce a bill.
+   - Network access: allow only the server's public IP (reserve it so it never changes); never reuse
+     this user elsewhere.
+3. **Server:** set every server variable from `server/.env.example` in the GitHub `production` environment
+   (keys as secrets); each deploy writes them to `server/.env`, readable only by its owner. Keep ports
+   8080 and 8081 off the public internet: only the host's Nginx may reach the containers.
 4. **Provider keys:** use keys created only for this app, so they can be revoked without breaking
    anything else. Leave optional providers unset if you don't want them offered.
 5. **Budgets:** check each provider's current free quota and set `DAILY_TOKENS` and `DAILY_SEARCHES`
    comfortably below them.
-6. **After launch:** watch `/admin` (set `ADMIN_TOKEN` first) and the Vercel logs for unusual use. If
-   needed, lower the budgets or set `MAINTENANCE_MODE=true` (both take effect on redeploy).
+6. **After launch:** watch `/admin` (set `ADMIN_TOKEN` first) and `docker compose logs` for unusual use.
+   If needed, lower the budgets or set `MAINTENANCE_MODE=true` in the `production` environment (both take
+   effect on the next deploy; run the workflow by hand).

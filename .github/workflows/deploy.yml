@@ -1,0 +1,132 @@
+# Checks every push and pull request; on main, builds the images, pushes them to GHCR and deploys
+# them to the server. Rerunning an older run's deploy job rolls back to that commit's images.
+# The production environment holds all configuration; each deploy rewrites the server's env files from it.
+# Setup is in the Readme under "Continuous deployment".
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+
+  build:
+    if: github.ref == 'refs/heads/main'
+    needs: check
+    # The server is an Ampere (arm64) VM; building on an arm64 runner avoids emulation.
+    runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Name the images
+        # GHCR names must be lowercase; derived from the repo so a rename doesn't break deploys.
+        run: echo "IMAGE_REPO=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: server
+          push: true
+          tags: ${{ env.IMAGE_REPO }}/server:${{ github.sha }},${{ env.IMAGE_REPO }}/server:latest
+          cache-from: type=gha,scope=server
+          cache-to: type=gha,scope=server,mode=max
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: web
+          push: true
+          build-args: VITE_TURNSTILE_SITE_KEY=${{ vars.VITE_TURNSTILE_SITE_KEY }}
+          tags: ${{ env.IMAGE_REPO }}/web:${{ github.sha }},${{ env.IMAGE_REPO }}/web:latest
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,scope=web,mode=max
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-24.04
+    environment: production
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Name the images
+        # GHCR names must be lowercase; derived from the repo so a rename doesn't break deploys.
+        run: echo "IMAGE_REPO=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+      - name: Set up SSH
+        run: |
+          install -m 700 -d ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519 && chmod 600 ~/.ssh/id_ed25519
+          echo "${{ secrets.DEPLOY_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+      - name: Write the server's configuration
+        # Every secret and variable in the production environment becomes a server variable, except the
+        # deploy settings and build-time ones, so a new key needs no change here.
+        env:
+          SECRETS: ${{ toJSON(secrets) }}
+          VARS: ${{ toJSON(vars) }}
+          SITE_ADDRESS: ${{ vars.SITE_ADDRESS }}
+        run: |
+          test -n "$SITE_ADDRESS" || { echo "::error::Set the SITE_ADDRESS variable in the production environment"; exit 1; }
+          umask 077
+          mkdir -p config/server
+          echo "SITE_ADDRESS=$SITE_ADDRESS" > config/.env
+          jq -nr '(env.VARS | fromjson) + (env.SECRETS | fromjson)
+            | to_entries[]
+            | select(.key | test("^(DEPLOY_|VITE_|SITE_ADDRESS$|github_token$)") | not)
+            | if (.value | test("\n")) then error("\(.key) spans several lines") else "\(.key)=\(.value)" end' > config/server/.env
+          echo "Server variables: $(cut -d= -f1 config/server/.env | sort | tr '\n' ' ')"
+      - name: Copy the compose file and configuration
+        run: |
+          target="${{ vars.DEPLOY_USER }}@${{ vars.DEPLOY_HOST }}:${{ vars.DEPLOY_PATH }}"
+          ssh "${{ vars.DEPLOY_USER }}@${{ vars.DEPLOY_HOST }}" "mkdir -p '${{ vars.DEPLOY_PATH }}/server'"
+          scp docker-compose.yml "$target/"
+          scp config/.env "$target/.env.new"
+          scp config/server/.env "$target/server/.env.new"
+      - name: Pull and restart
+        run: |
+          ssh "${{ vars.DEPLOY_USER }}@${{ vars.DEPLOY_HOST }}" \
+            IMAGE_REPO="$IMAGE_REPO" IMAGE_TAG="${{ github.sha }}" DEPLOY_PATH="${{ vars.DEPLOY_PATH }}" \
+            REGISTRY_USER="${{ github.actor }}" REGISTRY_TOKEN="${{ secrets.GITHUB_TOKEN }}" \
+            'bash -s' <<'SCRIPT'
+          set -euo pipefail
+          cd "$DEPLOY_PATH"
+          mv .env.new .env && mv server/.env.new server/.env
+          export IMAGE_REPO IMAGE_TAG
+          # The job's token expires when the job ends, so the login is logged out right after the pull.
+          echo "$REGISTRY_TOKEN" | docker login ghcr.io -u "$REGISTRY_USER" --password-stdin
+          docker compose pull
+          docker logout ghcr.io
+          docker compose up -d --no-build --remove-orphans
+          for i in $(seq 1 30); do
+            curl -fsS localhost:8081/api/health && echo && break
+            [ "$i" = 30 ] && { docker compose logs --tail 50; exit 1; }
+            sleep 2
+          done
+          # Only this app's older images: other apps on the server keep theirs. Images in use can't be removed.
+          docker images --format '{{.Repository}}:{{.Tag}}' | grep "^$IMAGE_REPO/" | grep -v ":$IMAGE_TAG$" | xargs -r docker rmi 2>/dev/null || true
+          SCRIPT

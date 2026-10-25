@@ -1,0 +1,35 @@
+# Self-hosted deployment behind the host's Nginx (deploy/nginx.conf), which terminates HTTPS and
+# forwards to 127.0.0.1:8081. CI (.github/workflows/deploy.yml) builds the images and runs
+# `docker compose pull && docker compose up -d` on the server; `docker compose up -d --build` builds locally.
+# Needs a .env next to this file with SITE_ADDRESS (and optionally VITE_TURNSTILE_SITE_KEY),
+# and server/.env with the server's variables (see server/.env.example).
+# Fixed name, so this app's containers and network never mix with another project's on the same server.
+name: ai-interviewer
+
+services:
+  server:
+    image: ${IMAGE_REPO:-ai-interviewer}/server:${IMAGE_TAG:-latest}
+    build: { context: ., target: server }
+    restart: unless-stopped
+    init: true
+    # Caps keep one app from starving others sharing the server.
+    mem_limit: 1g
+    env_file: server/.env
+    environment:
+      PUBLIC_ORIGIN: https://${SITE_ADDRESS:?set SITE_ADDRESS in .env}
+      CLIENT_IP_HEADER: x-real-ip
+    # No published ports: only the web container can reach the API.
+
+  web:
+    image: ${IMAGE_REPO:-ai-interviewer}/web:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      target: web
+      args:
+        VITE_TURNSTILE_SITE_KEY: ${VITE_TURNSTILE_SITE_KEY:-}
+    restart: unless-stopped
+    mem_limit: 128m
+    depends_on: [server]
+    # Localhost only: the client IP header is trusted, so nothing but the host's Nginx may reach this.
+    ports:
+      - "127.0.0.1:8081:80"

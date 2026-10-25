@@ -29,7 +29,7 @@ const writeCookie = (reply: FastifyReply, value: string, maxAge: number) =>
       path: "/api",
       httpOnly: true,
       sameSite: "strict",
-      secure: !!process.env.VERCEL, // local development is plain http
+      secure: !!process.env.PUBLIC_ORIGIN, // local development is plain http
       maxAge,
     })
   );
@@ -64,15 +64,14 @@ export function candidateId(request: FastifyRequest): string {
 }
 
 /**
- * The client's IP. On Vercel, x-vercel-forwarded-for is set by Vercel itself and can't be spoofed;
- * elsewhere (local dev) we use the socket address and ignore client-supplied forwarding headers.
+ * The client's IP. Behind the reverse proxy, CLIENT_IP_HEADER names the header the proxy overwrites
+ * with the client's address (the server must only be reachable through that proxy). Elsewhere (local
+ * dev) we use the socket address and ignore client-supplied forwarding headers.
  */
 export function clientIp(request: FastifyRequest): string {
-  if (process.env.VERCEL) {
-    const forwarded = header(request, "x-vercel-forwarded-for") ?? header(request, "x-real-ip");
-    const first = forwarded?.split(",")[0]?.trim();
-    if (first) return first;
-  }
-  return request.raw.socket.remoteAddress ?? "unknown";
+  const proxyHeader = process.env.CLIENT_IP_HEADER?.toLowerCase();
+  const forwarded = proxyHeader && header(request, proxyHeader);
+  const first = forwarded?.split(",")[0]?.trim();
+  return first || (request.raw.socket.remoteAddress ?? "unknown");
 }
 

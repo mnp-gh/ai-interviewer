@@ -38,8 +38,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  delete process.env.VERCEL;
-  delete process.env.VERCEL_PROJECT_PRODUCTION_URL;
+  delete process.env.PUBLIC_ORIGIN;
 });
 
 const credential = (id: string, challenge: string) => ({ id, rawId: id, type: "public-key", response: { challenge } });
@@ -254,9 +253,8 @@ describe("saving and restoring with a passkey", () => {
     expect(res.body.code).toBe("RATE_LIMITED");
   });
 
-  it("belongs to the production domain on Vercel, whatever Host the request names", async () => {
-    process.env.VERCEL = "1";
-    process.env.VERCEL_PROJECT_PRODUCTION_URL = "interviewer.example";
+  it("belongs to PUBLIC_ORIGIN in production, whatever Host the request names", async () => {
+    process.env.PUBLIC_ORIGIN = "https://interviewer.example/";
     const { app } = testApp();
     await savePasskey(asCandidate(app), 200);
     expect(webauthn.lastVerify).toMatchObject({ expectedRPID: "interviewer.example", expectedOrigin: "https://interviewer.example" });

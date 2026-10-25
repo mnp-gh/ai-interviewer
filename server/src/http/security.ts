@@ -1,7 +1,7 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { HttpError } from "./errors";
 
-/** Conservative headers for JSON API responses (the site's own headers are set in vercel.json). */
+/** Conservative headers for JSON API responses (the site's own headers are set in deploy/web.conf). */
 export const API_SECURITY_HEADERS: Record<string, string> = {
   "X-Content-Type-Options": "nosniff",
   "X-Frame-Options": "DENY",

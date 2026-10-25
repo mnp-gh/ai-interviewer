@@ -17,15 +17,14 @@ export type AccountRoutesOptions = {
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1"]);
 
 /**
- * Passkeys belong to the site's hostname. On Vercel that is the production domain (which Vercel
- * provides), never the request's Host header, so preview and alias domains can't hold passkeys of their own.
+ * Passkeys belong to the site's hostname. In production that is PUBLIC_ORIGIN, never the request's
+ * Host header, so other domains pointing at the server can't hold passkeys of their own.
  * Elsewhere (local development) it is the Host, and only localhost may use plain http.
  */
 function relyingParty(request: FastifyRequest): RelyingParty {
-  if (process.env.VERCEL) {
-    const domain = process.env.VERCEL_PROJECT_PRODUCTION_URL;
-    if (!domain) throw new Error("VERCEL_PROJECT_PRODUCTION_URL is not set: passkeys need the site's production domain.");
-    return { id: new URL(`https://${domain}`).hostname, origin: `https://${domain}` };
+  if (process.env.PUBLIC_ORIGIN) {
+    const origin = new URL(process.env.PUBLIC_ORIGIN).origin;
+    return { id: new URL(origin).hostname, origin };
   }
   const host = header(request, "host");
   if (!host) throw new HttpError(400, "INVALID_REQUEST", "Missing Host header");

@@ -18,10 +18,10 @@ No sign-up and no email: each browser gets an anonymous id. Everything runs on f
 ```
 client/   React 19 + Vite + MUI, React Query, React Router
 server/   Fastify API (TypeScript), Mongoose (MongoDB Atlas), OpenAI-compatible SDK for every AI provider
-api/      Vercel function entry point: hands /api/* to the Fastify app
+deploy/   Nginx configs for the web container and the host (Docker deployment)
 ```
 
-- **One origin.** In production Vercel serves the static client and the API under `/api` from one project; locally Vite proxies `/api` to the server on port 8080. No CORS.
+- **One origin.** In production an Nginx container serves the static client and proxies the API under `/api`; locally Vite proxies `/api` to the server on port 8080. No CORS.
 - **One document per interview** (setup, turns, report) in MongoDB, with atomic conditional updates guarding against double submits.
 - **Streaming** as NDJSON over POST for questions, feedback and coach replies.
 - **Types shared** by importing the server's zod schemas type-only from the client.
@@ -58,22 +58,74 @@ Optional keys in `server/.env` switch features on: `MISTRAL_API_KEY`, `GEMINI_AP
 
 Tests never call real AI providers. The first server test run downloads a MongoDB binary for the in-memory database.
 
-## Deploying to Vercel
+## Deploying
 
-1. **Import the repository** in Vercel with the **repo root** as the root directory. `vercel.json` sets the install and build commands, the output directory, the `/api` rewrite and the security headers; Node 24 comes from `engines`.
-2. **Environment variables** (Settings → Environment Variables, Production):
+`docker-compose.yml` runs two containers: the API (`server`) and Nginx (`web`, configured by `deploy/web.conf`), which serves the built client and proxies `/api` to the API, on `127.0.0.1:8081`. The host's Nginx terminates HTTPS (Certbot) and forwards everything to it, so the site and API share one origin. These steps assume a VM that already has Docker Compose, Nginx (allowed by SELinux to proxy), Certbot and firewalld open for HTTP and HTTPS, such as the Oracle Cloud free-tier VM. The OCI Security List must also allow TCP 80 and 443.
 
-   | Variable | Required | Notes |
-   |---|---|---|
-   | `MONGODB_URI` | yes | Atlas connection string |
-   | `GROQ_API_KEY` | yes | Default and parsing model |
-   | `TURNSTILE_SECRET_KEY` | recommended | Bot check |
-   | `VITE_TURNSTILE_SITE_KEY` | recommended | Read at **build** time; redeploy after changing it |
-   | `TAVILY_API_KEY` | optional | Role briefing |
-   | `MISTRAL_API_KEY`, `GEMINI_API_KEY`, `OPENROUTER_API_KEY` | optional | More models |
-   | `DAILY_TOKENS`, `DAILY_SEARCHES`, ... | optional | Budgets; defaults in `server/.env.example` |
+Pushing to `main` deploys (see [Continuous deployment](#continuous-deployment)). All configuration lives in GitHub; each deploy writes it to the server, which holds nothing else:
 
-3. **Before inviting users**, work through the release checklist in [docs/security.md](docs/security.md): a least-privilege Atlas user, Atlas network access, Vercel spend limits, and budgets below your providers' free quotas.
+```
+~/ai-interviewer/
+  docker-compose.yml   copied by each deploy
+  .env                 SITE_ADDRESS, written by each deploy
+  server/.env          the server's variables, written by each deploy
+```
+
+1. **Pick the site's hostname** and point its DNS at the server: a domain, a free subdomain such as DuckDNS, or `<ip with dashes>.sslip.io` (a VM at `203.0.113.9` is `203-0-113-9.sslip.io`).
+2. **Point Nginx at the containers and add HTTPS** (from a checkout, for `deploy/nginx.conf`):
+
+   ```sh
+   sudo cp deploy/nginx.conf /etc/nginx/conf.d/ai-interviewer.conf
+   sudo sed -i "s/example.com/<SITE_ADDRESS>/" /etc/nginx/conf.d/ai-interviewer.conf
+   sudo nginx -t && sudo systemctl reload nginx
+   sudo certbot --nginx -d <SITE_ADDRESS> --redirect
+   ```
+
+3. **Deploy** by pushing to `main`, or run the workflow by hand (Actions → CI/CD → Run workflow). `docker compose logs -f` in `~/ai-interviewer` shows the logs.
+
+Without CI, `docker compose up -d --build` in a checkout, with a root `.env` (see `.env.example`) and `server/.env`, builds and starts the same containers.
+
+Server variables (secrets in the `production` environment; see [Continuous deployment](#continuous-deployment)):
+
+| Variable | Required | Notes |
+|---|---|---|
+| `MONGODB_URI` | yes | Atlas connection string |
+| `GROQ_API_KEY` | yes | Default and parsing model |
+| `TURNSTILE_SECRET_KEY` | recommended | Bot check; pair it with `VITE_TURNSTILE_SITE_KEY` |
+| `TAVILY_API_KEY` | optional | Role briefing |
+| `MISTRAL_API_KEY`, `GEMINI_API_KEY`, `OPENROUTER_API_KEY` | optional | More models |
+| `ADMIN_TOKEN` | optional | Turns on the `/admin` usage page |
+| `DAILY_TOKENS`, `DAILY_SEARCHES`, ... | optional | Budgets; defaults in `server/.env.example` |
+
+**Before inviting users**, work through the release checklist in [docs/security.md](docs/security.md).
+
+Also:
+
+- **Atlas network access.** Allow the VM's public IP (reserve it in OCI so it never changes) instead of `0.0.0.0/0`.
+- **Turnstile.** Add `SITE_ADDRESS` to the widget's hostnames in Cloudflare.
+- **Passkeys belong to `SITE_ADDRESS`.** Passkeys saved on another domain don't work there; recovery codes do. Pick the name once.
+- **Sharing the server with other apps.** This app owns the Compose project `ai-interviewer`, host port `127.0.0.1:8081` and its own Nginx site, and deploys only remove its own images. Another app needs its own port, `server_name` (e.g. `api.<ip with dashes>.sslip.io`) and certificate.
+- **Only localhost reaches the containers.** The API trusts the `X-Real-IP` header Nginx sets, so keep port 8081 bound to `127.0.0.1` and never publish 8080.
+
+### Continuous deployment
+
+`.github/workflows/deploy.yml` lints, typechecks and tests every push and pull request. On `main` it then builds both images on an arm64 runner, pushes them to GHCR tagged with the commit, and over SSH has the server pull them, restart and pass a health check. To roll back, rerun an older run's **deploy** job: it deploys that commit's images.
+
+All configuration lives in the repository's `production` environment (Settings → Environments → production). Each deploy writes the server's `.env` and `server/.env` from it, so to change a setting, edit it there and run the workflow (Actions → CI/CD → Run workflow).
+
+| Kind | Name | Value |
+|---|---|---|
+| Variable | `SITE_ADDRESS` | The site's hostname, e.g. `ai-interviewer-mnp.duckdns.org`; passkeys belong to it |
+| Secrets and variables | Every server variable (`MONGODB_URI`, `GROQ_API_KEY`, `TURNSTILE_SECRET_KEY`, `DAILY_TOKENS`, ...) | Copied to `server/.env` as they are: secrets for keys, variables for plain settings. A new one needs no workflow change |
+| Secret | `DEPLOY_SSH_KEY` | A private key used only for deploys, whose public key is in the server user's `~/.ssh/authorized_keys` |
+| Secret | `DEPLOY_KNOWN_HOSTS` | The server's host key line, e.g. from `ssh-keygen -F <host>` on a machine that has connected before |
+| Variable | `DEPLOY_HOST` | The server's IP or hostname |
+| Variable | `DEPLOY_USER` | A user in the `docker` group (`opc` on Oracle Linux) |
+| Variable | `DEPLOY_PATH` | `/home/opc/ai-interviewer` |
+
+To set many at once, put them in `.env.production` at the repo root (git-ignored, `server/.env` syntax) and run `deploy/github-config.sh`: it makes keys secrets, plain settings variables, and `VITE_*` repository variables.
+
+Names starting with `DEPLOY_` or `VITE_` stay out of `server/.env`. The Turnstile site key is a **repository** variable (Settings → Secrets and variables → Actions → Variables), `VITE_TURNSTILE_SITE_KEY`, because the image build reads it; it's public. Values must fit on one line.
 
 ## Documentation
 

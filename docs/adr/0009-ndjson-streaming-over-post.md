@@ -1,6 +1,6 @@
 # Stream AI output as NDJSON over POST
 
-Questions, feedback and coach replies stream to the browser as newline-delimited JSON events (`delta`, then `done` with the saved interview, or `error`), read with `fetch` and a stream reader. We chose this over Server-Sent Events because the streaming calls are POSTs with a body and custom headers, which `EventSource` doesn't support, and over WebSockets because they don't fit serverless functions.
+Questions, feedback and coach replies stream to the browser as newline-delimited JSON events (`delta`, then `done` with the saved interview, or `error`), read with `fetch` and a stream reader. We chose this over Server-Sent Events because the streaming calls are POSTs with a body and custom headers, which `EventSource` doesn't support, and over WebSockets because they need connection upgrades and state that plain request/response streaming doesn't.
 
 ## Consequences
 

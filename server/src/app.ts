@@ -42,7 +42,7 @@ export function createApp(options: AppOptions = {}): FastifyInstance {
   const account = createAccountService({ now: options.now });
 
   // No CORS: the site and the API share one origin, so other sites' pages can't call the API.
-  // trustProxy stays off: the client IP is read from Vercel's own header (see clientIp).
+  // trustProxy stays off: the client IP is read from one header our own proxy sets (see clientIp).
   const app = Fastify({ bodyLimit: 200 * 1024 });
   app.register(cookie);
   app.setErrorHandler(errorHandler);
@@ -95,7 +95,7 @@ export function createApp(options: AppOptions = {}): FastifyInstance {
   return app;
 }
 
-/** Adapts the app to a plain Node request handler (Vercel functions, tests). */
+/** Adapts the app to a plain Node request handler (tests). */
 export function toNodeHandler(app: FastifyInstance) {
   const ready = app.ready();
   return async (request: IncomingMessage, response: ServerResponse) => {

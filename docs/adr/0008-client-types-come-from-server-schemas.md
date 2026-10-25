@@ -1,6 +1,6 @@
 # The client imports its API types from the server's schemas
 
-The client has no API type definitions of its own: `client/src/api/types.ts` re-exports types from `server/src/interview/schemas.ts` with type-only imports, so nothing from the server is bundled. This keeps the two sides in lockstep with no shared package or code generation. A separate workspace package was rejected because Vercel's Node builder would have to transpile TypeScript from a linked package, an extra moving part for no benefit at this size.
+The client has no API type definitions of its own: `client/src/api/types.ts` re-exports types from `server/src/interview/schemas.ts` with type-only imports, so nothing from the server is bundled. This keeps the two sides in lockstep with no shared package or code generation. A separate workspace package was rejected because it would need its own build step to compile TypeScript for both consumers, an extra moving part for no benefit at this size.
 
 ## Consequences
 

@@ -1,11 +1,13 @@
-// Local development entry point. On Vercel, api/index.ts serves the app instead.
+// Entry point for local development and the Docker image.
 import { createApp } from "./app";
 import { connectToDatabase } from "./db/mongo-client";
 
 const PORT = Number(process.env.PORT) || 8080;
+// Loopback only by default; the Docker image sets HOST=0.0.0.0 so the reverse proxy can reach it.
+const HOST = process.env.HOST || "127.0.0.1";
 
 createApp()
-  .listen({ port: PORT, host: "127.0.0.1" })
+  .listen({ port: PORT, host: HOST })
   .then(() => console.log(`Server is running on http://localhost:${PORT}`))
   .catch((error: NodeJS.ErrnoException) => {
     if (error.code === "EADDRINUSE") {

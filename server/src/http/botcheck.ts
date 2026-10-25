@@ -13,7 +13,7 @@ const SITEVERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverif
 export function createTurnstileVerifier(env: NodeJS.ProcessEnv = process.env): VerifyHuman | null {
   const secret = env.TURNSTILE_SECRET_KEY;
   if (!secret) {
-    if (env.VERCEL) console.warn("TURNSTILE_SECRET_KEY is not set: bot checks are disabled.");
+    if (env.NODE_ENV === "production") console.warn("TURNSTILE_SECRET_KEY is not set: bot checks are disabled.");
     return null;
   }
   return async (token, ip) => {
