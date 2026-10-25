@@ -15,6 +15,7 @@ services:
     init: true
     # Caps keep one app from starving others sharing the server.
     mem_limit: 1g
+    cpus: 0.4
     env_file: ../server/.env
     environment:
       PUBLIC_ORIGIN: https://${SITE_ADDRESS:?set SITE_ADDRESS in .env}
@@ -31,6 +32,7 @@ services:
         VITE_TURNSTILE_SITE_KEY: ${VITE_TURNSTILE_SITE_KEY:-}
     restart: unless-stopped
     mem_limit: 128m
+    cpus: 0.1
     depends_on: [server]
     # Localhost only: the client IP header is trusted, so nothing but the host's Nginx may reach this.
     ports:
