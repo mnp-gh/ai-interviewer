@@ -37,8 +37,8 @@ jobs:
   build:
     if: github.ref == 'refs/heads/main'
     needs: check
-    # The server is an Ampere (arm64) VM; building on an arm64 runner avoids emulation.
-    runs-on: ubuntu-24.04-arm
+    # The server is an Ampere (arm64) VM with a self-hosted runner.
+    runs-on: [self-hosted, linux, arm64]
     permissions:
       contents: read
       packages: write
@@ -81,7 +81,7 @@ jobs:
 
   deploy:
     needs: build
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, linux, arm64]
     environment: production
     permissions:
       contents: read
@@ -91,11 +91,6 @@ jobs:
       - name: Name the images
         # GHCR names must be lowercase; derived from the repo so a rename doesn't break deploys.
         run: echo "IMAGE_REPO=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
-      - name: Set up SSH
-        run: |
-          install -m 700 -d ~/.ssh
-          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519 && chmod 600 ~/.ssh/id_ed25519
-          echo "${{ secrets.DEPLOY_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
       - name: Write the server's configuration
         # Every secret and variable in the production environment becomes a server variable, except the
         # deploy settings and build-time ones, so a new key needs no change here.
@@ -106,34 +101,23 @@ jobs:
         run: |
           test -n "$SITE_ADDRESS" || { echo "::error::Set the SITE_ADDRESS variable in the production environment"; exit 1; }
           umask 077
-          mkdir -p config/server
-          echo "SITE_ADDRESS=$SITE_ADDRESS" > config/.env
+          DEPLOY_PATH="${HOME}/ai-interviewer"
+          mkdir -p "$DEPLOY_PATH/deploy" "$DEPLOY_PATH/server"
+          echo "SITE_ADDRESS=$SITE_ADDRESS" > "$DEPLOY_PATH/deploy/.env"
+          echo "IMAGE_REPO=$IMAGE_REPO" >> "$DEPLOY_PATH/deploy/.env"
           jq -nr '(env.VARS | fromjson) + (env.SECRETS | fromjson)
             | to_entries[]
             | select(.key | test("^(DEPLOY_|DHI_|VITE_|SITE_ADDRESS$|github_token$)") | not)
-            | if (.value | test("\n")) then error("\(.key) spans several lines") else "\(.key)=\(.value)" end' > config/server/.env
-          echo "Server variables: $(cut -d= -f1 config/server/.env | sort | tr '\n' ' ')"
-      - name: Copy the compose file and configuration
-        run: |
-          target="${{ vars.DEPLOY_USER }}@${{ vars.DEPLOY_HOST }}:${{ vars.DEPLOY_PATH }}"
-          # The same layout as the repo, so the compose file finds ../server/.env in both places.
-          ssh "${{ vars.DEPLOY_USER }}@${{ vars.DEPLOY_HOST }}" "mkdir -p '${{ vars.DEPLOY_PATH }}/deploy' '${{ vars.DEPLOY_PATH }}/server'"
-          scp deploy/docker-compose.yml "$target/deploy/"
-          scp config/.env "$target/deploy/.env.new"
-          scp config/server/.env "$target/server/.env.new"
+            | if (.value | test("\n")) then error("\(.key) spans several lines") else "\(.key)=\(.value)" end' > "$DEPLOY_PATH/server/.env"
+          echo "Server variables: $(cut -d= -f1 "$DEPLOY_PATH/server/.env" | sort | tr '\n' ' ')"
+      - name: Copy the compose file
+        run: cp deploy/docker-compose.yml "${HOME}/ai-interviewer/deploy/"
       - name: Pull and restart
         run: |
-          ssh "${{ vars.DEPLOY_USER }}@${{ vars.DEPLOY_HOST }}" \
-            IMAGE_REPO="$IMAGE_REPO" IMAGE_TAG="${{ github.sha }}" DEPLOY_PATH="${{ vars.DEPLOY_PATH }}" \
-            REGISTRY_USER="${{ github.actor }}" REGISTRY_TOKEN="${{ secrets.GITHUB_TOKEN }}" \
-            'bash -s' <<'SCRIPT'
-          set -euo pipefail
-          cd "$DEPLOY_PATH"
-          mv deploy/.env.new deploy/.env && mv server/.env.new server/.env
-          cd deploy
-          export IMAGE_REPO IMAGE_TAG
+          cd "${HOME}/ai-interviewer/deploy"
+          export IMAGE_REPO IMAGE_TAG="${{ github.sha }}"
           # The job's token expires when the job ends, so the login is logged out right after the pull.
-          echo "$REGISTRY_TOKEN" | docker login ghcr.io -u "$REGISTRY_USER" --password-stdin
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
           docker compose pull
           docker logout ghcr.io
           docker compose up -d --no-build --remove-orphans
@@ -144,4 +128,3 @@ jobs:
           done
           # Only this app's older images: other apps on the server keep theirs. Images in use can't be removed.
           docker images --format '{{.Repository}}:{{.Tag}}' | grep "^$IMAGE_REPO/" | grep -v ":$IMAGE_TAG$" | xargs -r docker rmi 2>/dev/null || true
-          SCRIPT
