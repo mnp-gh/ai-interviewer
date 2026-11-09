@@ -37,8 +37,8 @@ jobs:
   build:
     if: github.ref == 'refs/heads/main'
     needs: check
-    # The server is an Ampere (arm64) VM with a self-hosted runner.
-    runs-on: [self-hosted, linux, arm64]
+    # The server is an Ampere (arm64) VM; building on an arm64 runner avoids emulation.
+    runs-on: ubuntu-24.04-arm
     permissions:
       contents: read
       packages: write
