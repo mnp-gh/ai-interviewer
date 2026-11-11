@@ -53,26 +53,6 @@ function chunks(text: string): string[] {
   return text.match(/[^.!?]+[.!?]+["')\]]?\s*|[^.!?]+$/g)?.map((part) => part.trim()).filter(Boolean) ?? [text];
 }
 
-/** A tenth of a second of silence as a WAV, for unlocking audio playback on a first click. */
-function silence(): Blob {
-  const samples = 800;
-  const view = new DataView(new ArrayBuffer(44 + samples * 2));
-  const text = (offset: number, value: string) => [...value].forEach((char, i) => view.setUint8(offset + i, char.charCodeAt(0)));
-  text(0, "RIFF");
-  view.setUint32(4, 36 + samples * 2, true);
-  text(8, "WAVEfmt ");
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true); // PCM
-  view.setUint16(22, 1, true); // mono
-  view.setUint32(24, 8000, true);
-  view.setUint32(28, 16000, true);
-  view.setUint16(32, 2, true);
-  view.setUint16(34, 16, true);
-  text(36, "data");
-  view.setUint32(40, samples * 2, true);
-  return new Blob([view], { type: "audio/wav" });
-}
-
 /** A voice the interviewer can read with: the server's enhanced voices, or one of the browser's own. */
 export type VoiceOption = { key: string; label: string; enhanced: boolean };
 
@@ -130,28 +110,6 @@ export function useInterviewerVoice(enabled: boolean, interviewId: string, enhan
     };
   }, [stop]);
 
-  // Safari only lets audio start inside a click; a question arrives later. Playing silence (and an
-  // empty utterance) on the first click or key press unlocks both for the rest of the visit.
-  useEffect(() => {
-    if (!enabled) return;
-    const unlock = () => {
-      document.removeEventListener("pointerdown", unlock, true);
-      document.removeEventListener("keydown", unlock, true);
-      audio.current ??= new Audio();
-      if (!audio.current.src) {
-        audio.current.src = URL.createObjectURL(silence());
-        Promise.resolve(audio.current.play()).catch(() => {});
-      }
-      if (browserSupported && !window.speechSynthesis.speaking) window.speechSynthesis.speak(new SpeechSynthesisUtterance(""));
-    };
-    document.addEventListener("pointerdown", unlock, true);
-    document.addEventListener("keydown", unlock, true);
-    return () => {
-      document.removeEventListener("pointerdown", unlock, true);
-      document.removeEventListener("keydown", unlock, true);
-    };
-  }, [enabled, browserSupported]);
-
   const sayInBrowser = useCallback(
     (text: string, key?: string) => {
       if (!browserSupported) return;
@@ -196,13 +154,8 @@ export function useInterviewerVoice(enabled: boolean, interviewId: string, enhan
       if (ticket !== request.current) return; // stopped, or another question started, while it loaded
       audio.current ??= new Audio();
       audio.current.src = url;
-      Promise.resolve(audio.current.play()).catch((error: unknown) => {
+      Promise.resolve(audio.current.play()).catch(() => {
         // Autoplay blocked (no click on the page yet): "Hear the question again" still works.
-        if (error instanceof DOMException && error.name === "NotAllowedError") return;
-        if (error instanceof DOMException && error.name === "AbortError") return; // stopped, or the next question started
-        // Anything else (a blocked or unplayable source) mustn't leave the interviewer silent.
-        setFallback("The enhanced voice can't play in this browser, so your browser's voice reads the questions instead.");
-        if (ticket === request.current) sayInBrowser(text.trim());
       });
     },
     [supported, muted, selected?.key, fallback, stop, sayInBrowser, interviewId]
