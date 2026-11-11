@@ -1,0 +1,21 @@
+# Weekly dependency update pull requests. Minor and patch npm updates arrive together in one PR;
+# majors come one per PR. The Docker base images (dhi.io) are updated by hand.
+version: 2
+updates:
+  # The pnpm workspace: one lockfile at the root covers client, server and e2e.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
