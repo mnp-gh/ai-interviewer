@@ -497,6 +497,12 @@ export default function UsagePage() {
               limit={data.interviewerVoice.limit}
               unit="questions"
             />
+            <CapTile
+              title="Enhanced voice characters, everyone"
+              used={data.interviewerVoiceCharacters.used}
+              limit={data.interviewerVoiceCharacters.limit}
+              unit="characters"
+            />
             <CountTile
               title="Interviews started"
               value={data.interviewsStarted}
