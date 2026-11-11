@@ -7,6 +7,7 @@ import {
   CardContent,
   CircularProgress,
   Grid,
+  Link,
   Skeleton,
   Slider,
   Stack,
@@ -15,7 +16,7 @@ import {
   Typography,
 } from "@mui/material";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { botCheckHeaders } from "../../api/botCheck";
 import { api } from "../../api/client";
@@ -59,6 +60,9 @@ export default function SettingsStep({ draft, update, reset }: Props) {
   const models = useModels();
   const defaultModel = models.data?.find((model) => model.isDefault) ?? models.data?.[0];
   const modelId = models.data?.some((model) => model.id === draft.modelId) ? draft.modelId! : defaultModel?.id;
+  const selectedModel = models.data?.find((model) => model.id === modelId);
+  // A sensible default is already picked, so the model picker stays out of the way until asked for.
+  const [choosingModel, setChoosingModel] = useState(false);
 
   const start = useMutation({
     mutationFn: async () => {
@@ -140,10 +144,17 @@ export default function SettingsStep({ draft, update, reset }: Props) {
                   const selected = draft.mode === mode;
                   return (
                     <Grid key={mode} size={{ xs: 12, sm: 6 }}>
-                      <Card sx={{ borderColor: selected ? "primary.main" : "divider", borderWidth: selected ? 2 : 1 }}>
-                        <CardActionArea onClick={() => update({ mode })} aria-pressed={selected} sx={{ p: 2 }}>
-                          <Typography sx={{ fontWeight: 600 }}>{MODE_LABELS[mode].label}</Typography>
-                          <Typography variant="body2" color="text.secondary">
+                      <Card
+                        sx={{
+                          height: "100%",
+                          borderColor: selected ? "text.primary" : "divider",
+                          borderWidth: 2,
+                          ...(selected && { bgcolor: "script.highlight", color: "script.highlightInk" }),
+                        }}
+                      >
+                        <CardActionArea onClick={() => update({ mode })} aria-pressed={selected} sx={{ p: 2, height: "100%" }}>
+                          <Typography sx={{ fontWeight: 800 }}>{MODE_LABELS[mode].label}</Typography>
+                          <Typography variant="body2" sx={{ color: selected ? "inherit" : "text.secondary" }}>
                             {MODE_LABELS[mode].description}
                           </Typography>
                         </CardActionArea>
@@ -154,15 +165,27 @@ export default function SettingsStep({ draft, update, reset }: Props) {
               </Grid>
             </Field>
 
-            <Field label="Interviewer model" hint="All free. You can switch later if a model is busy.">
+            <Field label="Interviewer model">
               {models.isPending ? (
                 <Skeleton variant="rounded" height={56} />
               ) : models.error ? (
                 <Alert severity="error">{models.error.message}</Alert>
               ) : models.data.length === 0 ? (
                 <Alert severity="warning">No AI models are configured on the server yet.</Alert>
-              ) : (
+              ) : choosingModel || selectedModel?.mayTrainOnInputs ? (
                 <ModelSelect models={models.data} value={modelId ?? ""} onChange={(id) => update({ modelId: id })} />
+              ) : (
+                <Stack direction="row" useFlexGap sx={{ alignItems: "baseline", flexWrap: "wrap", columnGap: 1.5, rowGap: 0.5 }}>
+                  <Typography>
+                    {selectedModel ? `${selectedModel.label} · ${selectedModel.provider}` : "Default model"}
+                  </Typography>
+                  <Link component="button" type="button" onClick={() => setChoosingModel(true)} sx={{ fontWeight: 700 }}>
+                    Change
+                  </Link>
+                  <Typography variant="body2" color="text.secondary" sx={{ flexBasis: "100%" }}>
+                    Free. You can switch later if it's busy.
+                  </Typography>
+                </Stack>
               )}
             </Field>
           </Stack>
@@ -172,7 +195,7 @@ export default function SettingsStep({ draft, update, reset }: Props) {
       {start.error && <Alert severity="error">{start.error.message}</Alert>}
 
       <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-        <Button onClick={() => update({ step: 1 })}>Back</Button>
+        <Button color="inherit" onClick={() => update({ step: 1 })}>Back</Button>
         <Button
           variant="contained"
           size="large"

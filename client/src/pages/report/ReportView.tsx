@@ -1,9 +1,7 @@
 import ArrowBackRounded from "@mui/icons-material/ArrowBackRounded";
 import DeleteOutlineRounded from "@mui/icons-material/DeleteOutlineRounded";
 import ExpandMoreRounded from "@mui/icons-material/ExpandMoreRounded";
-import LightbulbOutlined from "@mui/icons-material/LightbulbOutlined";
 import ReplayRounded from "@mui/icons-material/ReplayRounded";
-import StarOutlineRounded from "@mui/icons-material/StarOutlineRounded";
 import {
   Accordion,
   AccordionDetails,
@@ -11,14 +9,7 @@ import {
   Alert,
   Box,
   Button,
-  Card,
-  CardContent,
-  Chip,
-  Grid,
-  List,
-  ListItem,
-  ListItemIcon,
-  ListItemText,
+  Paper,
   Stack,
   Typography,
 } from "@mui/material";
@@ -28,8 +19,11 @@ import { useModels } from "../../api/queries";
 import { DIFFICULTY_LABELS, INTERVIEW_TYPE_LABELS, MODE_LABELS, type InterviewView } from "../../api/types";
 import { useDeleteInterview, usePractiseAgain } from "../../api/mutations";
 import ConfirmDeleteDialog from "../../components/ConfirmDeleteDialog";
-import { TurnTranscript } from "../interview/Transcript";
-import { ScoreChip, ScoreMeter, ScoresByQuestion } from "./ScoreVisuals";
+import { Speaker, TurnTranscript } from "../interview/Transcript";
+import { ScoreChip } from "./ScoreVisuals";
+
+// Keeps the separator on the title's line when the heading wraps.
+const NBSP = "\u00a0";
 
 const formatDate = (iso: string) =>
   new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
@@ -42,6 +36,11 @@ export default function ReportView({ interview }: { interview: InterviewView }) 
   const [confirmDelete, setConfirmDelete] = useState(false);
   const modelLabel = (id: string) => models.data?.find((model) => model.id === id)?.label ?? id.split(":").slice(1).join(":");
 
+  // The weakest answer opens by default, so the report starts on what most needs rehearsing.
+  const weakest = report?.questions.length
+    ? report.questions.reduce((low, entry) => (entry.score < low.score ? entry : low)).index
+    : null;
+
   const actions = (
     <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
       <Button
@@ -52,29 +51,24 @@ export default function ReportView({ interview }: { interview: InterviewView }) 
       >
         Practise again
       </Button>
-      <Button component={Link} to="/" startIcon={<ArrowBackRounded />}>
+      <Button component={Link} to="/" color="inherit" startIcon={<ArrowBackRounded />}>
         All interviews
       </Button>
     </Stack>
   );
 
   return (
-    <Stack spacing={3} sx={{ maxWidth: 960, mx: "auto" }}>
-      <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{ justifyContent: "space-between", alignItems: { md: "flex-end" } }}>
-        <Box>
-          <Typography variant="overline" color="text.secondary">
-            Interview report · {formatDate(interview.completedAt ?? interview.createdAt)}
-          </Typography>
-          <Typography variant="h4" component="h1">
+    <Stack spacing={{ xs: 4, md: 5 }} sx={{ maxWidth: 1000, mx: "auto" }}>
+      <Stack direction={{ xs: "column", md: "row" }} spacing={3} sx={{ justifyContent: "space-between", alignItems: { md: "flex-end" } }}>
+        <Box sx={{ minWidth: 0 }}>
+          <Typography variant="h3" component="h1" sx={{ fontSize: { xs: "1.875rem", md: "2.5rem" }, lineHeight: 1.15, overflowWrap: "anywhere" }}>
             {setup.requirements.title}
-            {setup.requirements.company ? ` · ${setup.requirements.company}` : ""}
+            {setup.requirements.company ? `${NBSP}· ${setup.requirements.company}` : ""}
           </Typography>
-          <Stack direction="row" spacing={1} useFlexGap sx={{ mt: 1, flexWrap: "wrap" }}>
-            <Chip size="small" label={INTERVIEW_TYPE_LABELS[setup.interviewType]} />
-            <Chip size="small" label={DIFFICULTY_LABELS[setup.difficulty]} />
-            <Chip size="small" label={`${MODE_LABELS[setup.mode].label} mode`} />
-            {report && <Chip size="small" variant="outlined" label={`Assessed by ${modelLabel(report.modelId)}`} />}
-          </Stack>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5 }}>
+            {INTERVIEW_TYPE_LABELS[setup.interviewType]} · {DIFFICULTY_LABELS[setup.difficulty]} · {MODE_LABELS[setup.mode].label} mode
+            {report && ` · Assessed by ${modelLabel(report.modelId)}`} · {formatDate(interview.completedAt ?? interview.createdAt)}
+          </Typography>
         </Box>
         {actions}
       </Stack>
@@ -85,136 +79,147 @@ export default function ReportView({ interview }: { interview: InterviewView }) 
         <Alert severity="info">This interview ended without a report.</Alert>
       ) : (
         <>
-          <Card>
-            <CardContent>
-              <Grid container spacing={4}>
-                <Grid size={{ xs: 12, md: 5 }}>
-                  <Stack spacing={1.5}>
-                    <Typography variant="subtitle2" color="text.secondary">
-                      Overall score
-                    </Typography>
-                    <Stack direction="row" spacing={1} sx={{ alignItems: "baseline" }}>
-                      <Typography sx={{ fontSize: { xs: 56, md: 64 }, fontWeight: 700, lineHeight: 1 }}>{report.overallScore}</Typography>
-                      <Typography variant="h5" color="text.secondary">
-                        / 10
-                      </Typography>
-                    </Stack>
-                    <ScoreMeter score={report.overallScore} />
-                    <Box>
-                      <ScoreChip score={report.overallScore} size="medium" />
-                    </Box>
-                    <Typography>{report.summary}</Typography>
-                  </Stack>
-                </Grid>
-                <Grid size={{ xs: 12, md: 7 }}>
-                  <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1.5 }}>
-                    Score by question
+          <Paper variant="outlined" sx={{ borderColor: "script.rule", p: { xs: 2.5, sm: 4, md: 5 } }}>
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: { xs: "1fr", sm: "auto minmax(0, 1fr)" },
+                gap: { xs: 2.5, sm: 5, md: 7 },
+                alignItems: "center",
+              }}
+            >
+              <Box>
+                <Stack direction="row" spacing={1} sx={{ alignItems: "baseline" }}>
+                  <Typography
+                    aria-label={`Overall score ${report.overallScore} out of 10`}
+                    sx={{
+                      fontSize: { xs: 64, md: 88 },
+                      fontWeight: 800,
+                      lineHeight: 0.9,
+                      letterSpacing: "-0.04em",
+                      backgroundImage: (theme) =>
+                        `linear-gradient(transparent 62%, ${theme.vars!.palette.script.highlight} 62%, ${theme.vars!.palette.script.highlight} 92%, transparent 92%)`,
+                      px: 0.5,
+                    }}
+                  >
+                    {report.overallScore}
                   </Typography>
-                  <ScoresByQuestion
-                    scores={report.questions.map((entry) => ({
-                      index: entry.index,
-                      score: entry.score,
-                      question: turns[entry.index]?.question ?? "",
-                    }))}
-                  />
-                </Grid>
-              </Grid>
-            </CardContent>
-          </Card>
+                  <Typography variant="h5" component="span" color="text.secondary" aria-hidden>
+                    / 10
+                  </Typography>
+                </Stack>
+              </Box>
+              <Typography sx={{ fontSize: { xs: "1.0625rem", md: "1.25rem" }, lineHeight: 1.6, maxWidth: "38em" }}>
+                {report.summary}
+              </Typography>
+            </Box>
+          </Paper>
 
-          <Grid container spacing={3}>
-            <Grid size={{ xs: 12, md: 5 }}>
-              <Card sx={{ height: "100%" }}>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom>
-                    What went well
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: { xs: "1fr", md: "minmax(0, 5fr) minmax(0, 7fr)" },
+              gap: { xs: 4, md: 6 },
+            }}
+          >
+            <Box component="section" aria-labelledby="strengths-heading">
+              <Typography id="strengths-heading" variant="h6" component="h2" sx={{ mb: 2 }}>
+                What went well
+              </Typography>
+              <Stack component="ul" spacing={1.5} sx={{ listStyle: "none", p: 0, m: 0 }}>
+                {report.strengths.map((strength) => (
+                  <Typography component="li" key={strength} sx={{ lineHeight: 1.7 }}>
+                    <Box
+                      component="mark"
+                      sx={{ bgcolor: "script.highlight", color: "script.highlightInk", px: 0.5, boxDecorationBreak: "clone", WebkitBoxDecorationBreak: "clone" }}
+                    >
+                      {strength}
+                    </Box>
                   </Typography>
-                  <List dense disablePadding>
-                    {report.strengths.map((strength) => (
-                      <ListItem key={strength} disableGutters alignItems="flex-start">
-                        <ListItemIcon sx={{ minWidth: 32, mt: 0.5 }}>
-                          <StarOutlineRounded color="success" fontSize="small" />
-                        </ListItemIcon>
-                        <ListItemText primary={strength} />
-                      </ListItem>
-                    ))}
-                  </List>
-                </CardContent>
-              </Card>
-            </Grid>
-            <Grid size={{ xs: 12, md: 7 }}>
-              <Card sx={{ height: "100%" }}>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom>
-                    What to work on next
-                  </Typography>
-                  <Stack spacing={1.5}>
-                    {report.improvements.map((item) => (
-                      <Stack key={item.area} direction="row" spacing={1.5}>
-                        <LightbulbOutlined color="warning" fontSize="small" sx={{ mt: 0.25 }} />
-                        <Box>
-                          <Typography sx={{ fontWeight: 600 }}>{item.area}</Typography>
-                          <Typography color="text.secondary">{item.suggestion}</Typography>
-                        </Box>
-                      </Stack>
-                    ))}
-                  </Stack>
-                </CardContent>
-              </Card>
-            </Grid>
-          </Grid>
+                ))}
+              </Stack>
+            </Box>
+            <Box component="section" aria-labelledby="next-heading" sx={{ borderLeft: "1px dashed", borderColor: "script.pencil", pl: { xs: 2.5, md: 4 } }}>
+              <Typography id="next-heading" variant="h6" component="h2" sx={{ mb: 2, color: "script.pencil" }}>
+                What to work on next
+              </Typography>
+              <Stack spacing={2.5}>
+                {report.improvements.map((item) => (
+                  <Box key={item.area}>
+                    <Typography sx={{ fontWeight: 700 }}>{item.area}</Typography>
+                    <Typography sx={{ color: "script.pencil", lineHeight: 1.65 }}>{item.suggestion}</Typography>
+                  </Box>
+                ))}
+              </Stack>
+            </Box>
+          </Box>
         </>
       )}
 
-      <Box>
-        <Typography variant="h6" sx={{ mb: 1.5 }}>
+      <Box component="section" aria-labelledby="questions-heading">
+        <Typography id="questions-heading" variant="h6" component="h2" sx={{ mb: 2 }}>
           Question by question
         </Typography>
-        {turns.filter((turn) => turn.answer).map((turn) => {
-          const assessment = report?.questions.find((entry) => entry.index === turn.index);
-          return (
-            <Accordion key={turn.index} disableGutters variant="outlined" sx={{ "&:not(:last-of-type)": { borderBottom: 0 } }}>
-              <AccordionSummary expandIcon={<ExpandMoreRounded />}>
-                <Stack direction={{ xs: "column", sm: "row" }} spacing={{ xs: 1, sm: 2 }} sx={{ alignItems: { sm: "center" }, width: "100%", pr: 1 }}>
-                  <Typography sx={{ fontWeight: 600, flexGrow: 1 }}>
-                    Q{turn.index + 1}. {turn.question}
-                  </Typography>
-                  {assessment && <ScoreChip score={assessment.score} />}
-                </Stack>
-              </AccordionSummary>
-              <AccordionDetails>
-                <Stack spacing={2.5}>
-                  {assessment && (
-                    <Grid container spacing={2}>
-                      <Grid size={{ xs: 12, md: 6 }}>
-                        <Box sx={{ p: 2, borderRadius: 2, bgcolor: "action.hover", height: "100%" }}>
-                          <Typography variant="subtitle2" gutterBottom>
-                            Assessment
+        <Box sx={{ borderTop: 1, borderColor: "script.rule" }}>
+          {turns.filter((turn) => turn.answer).map((turn) => {
+            const assessment = report?.questions.find((entry) => entry.index === turn.index);
+            return (
+              <Accordion
+                key={turn.index}
+                defaultExpanded={turn.index === weakest}
+                disableGutters
+                square
+                sx={{ bgcolor: "transparent", borderBottom: 1, borderColor: "script.rule", "&.Mui-expanded": { bgcolor: "background.paper" } }}
+              >
+                <AccordionSummary expandIcon={<ExpandMoreRounded />} sx={{ px: { xs: 1, sm: 2 }, py: 1 }}>
+                  <Stack direction={{ xs: "column", sm: "row" }} spacing={{ xs: 1, sm: 2 }} sx={{ alignItems: { sm: "center" }, width: "100%", pr: 1 }}>
+                    <Typography sx={{ fontWeight: 800, color: "text.secondary", width: 32, flexShrink: 0 }}>{turn.index + 1}</Typography>
+                    <Typography sx={{ fontWeight: 600, flexGrow: 1, minWidth: 0 }}>{turn.question}</Typography>
+                    {assessment && (
+                      <Box sx={{ flexShrink: 0 }}>
+                        <ScoreChip score={assessment.score} />
+                      </Box>
+                    )}
+                  </Stack>
+                </AccordionSummary>
+                <AccordionDetails sx={{ px: { xs: 1.5, sm: 4 }, pb: 4 }}>
+                  <Stack spacing={4}>
+                    {assessment && (
+                      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: { xs: 2.5, md: 5 } }}>
+                        <Box sx={{ borderLeft: "1px dashed", borderColor: "script.pencil", pl: 2.5 }}>
+                          <Speaker color="script.pencil">Assessment</Speaker>
+                          <Typography variant="body2" sx={{ color: "script.pencil", lineHeight: 1.65 }}>
+                            {assessment.note}
                           </Typography>
-                          <Typography variant="body2">{assessment.note}</Typography>
                         </Box>
-                      </Grid>
-                      <Grid size={{ xs: 12, md: 6 }}>
-                        <Box sx={{ p: 2, borderRadius: 2, border: 1, borderColor: "primary.main", height: "100%" }}>
-                          <Typography variant="subtitle2" gutterBottom>
-                            A strong answer would include
+                        <Box>
+                          <Speaker color="text.primary">
+                            <Box component="mark" sx={{ bgcolor: "script.highlight", color: "script.highlightInk", px: 0.5 }}>
+                              A strong answer would include
+                            </Box>
+                          </Speaker>
+                          <Typography variant="body2" sx={{ lineHeight: 1.65 }}>
+                            {assessment.strongAnswer}
                           </Typography>
-                          <Typography variant="body2">{assessment.strongAnswer}</Typography>
                         </Box>
-                      </Grid>
-                    </Grid>
-                  )}
-                  <TurnTranscript turn={turn} showCoaching />
-                </Stack>
-              </AccordionDetails>
-            </Accordion>
-          );
-        })}
+                      </Box>
+                    )}
+                    <TurnTranscript turn={turn} showCoaching hideQuestion />
+                  </Stack>
+                </AccordionDetails>
+              </Accordion>
+            );
+          })}
+        </Box>
       </Box>
 
-      <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ justifyContent: "space-between" }}>
+      <Stack
+        direction={{ xs: "column", sm: "row" }}
+        spacing={2}
+        sx={{ justifyContent: "space-between", alignItems: { sm: "center" }, borderTop: 1, borderColor: "script.rule", pt: 4 }}
+      >
         {actions}
-        <Button color="error" startIcon={<DeleteOutlineRounded />} onClick={() => setConfirmDelete(true)}>
+        <Button color="error" variant="outlined" startIcon={<DeleteOutlineRounded />} onClick={() => setConfirmDelete(true)} sx={{ mt: { xs: 3, sm: 0 } }}>
           Delete this interview
         </Button>
       </Stack>

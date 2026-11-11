@@ -1,0 +1,680 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-11T10:17:48.780Z",
+  "title": "Design System: AI Interviewer",
+  "extensions": {
+    "colorMeta": {
+      "ink": {
+        "role": "primary",
+        "displayName": "Rehearsal Ink",
+        "canonical": "#17181b",
+        "tonalRamp": [
+          "oklch(15% 0.001 271.1)",
+          "oklch(26% 0.002 271.1)",
+          "oklch(37% 0.004 271.1)",
+          "oklch(48% 0.006 271.1)",
+          "oklch(59% 0.006 271.1)",
+          "oklch(70% 0.005 271.1)",
+          "oklch(82% 0.003 271.1)",
+          "oklch(95% 0.001 271.1)"
+        ]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Script Paper",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "oklch(15% 0.000 89.9)",
+          "oklch(26% 0.000 89.9)",
+          "oklch(37% 0.000 89.9)",
+          "oklch(48% 0.000 89.9)",
+          "oklch(59% 0.000 89.9)",
+          "oklch(70% 0.000 89.9)",
+          "oklch(82% 0.000 89.9)",
+          "oklch(95% 0.000 89.9)"
+        ]
+      },
+      "concrete": {
+        "role": "neutral",
+        "displayName": "Concrete Ground",
+        "canonical": "#e6e8eb",
+        "tonalRamp": [
+          "oklch(15% 0.001 258.3)",
+          "oklch(26% 0.002 258.3)",
+          "oklch(37% 0.003 258.3)",
+          "oklch(48% 0.004 258.3)",
+          "oklch(59% 0.005 258.3)",
+          "oklch(70% 0.003 258.3)",
+          "oklch(82% 0.002 258.3)",
+          "oklch(95% 0.001 258.3)"
+        ]
+      },
+      "ink-muted": {
+        "role": "neutral",
+        "displayName": "Muted Ink",
+        "canonical": "#55585f",
+        "tonalRamp": [
+          "oklch(15% 0.002 267.3)",
+          "oklch(26% 0.005 267.3)",
+          "oklch(37% 0.008 267.3)",
+          "oklch(48% 0.011 267.3)",
+          "oklch(59% 0.012 267.3)",
+          "oklch(70% 0.009 267.3)",
+          "oklch(82% 0.005 267.3)",
+          "oklch(95% 0.002 267.3)"
+        ]
+      },
+      "rule": {
+        "role": "neutral",
+        "displayName": "Hairline Rule",
+        "canonical": "#d9dbe0",
+        "tonalRamp": [
+          "oklch(15% 0.001 268.5)",
+          "oklch(26% 0.003 268.5)",
+          "oklch(37% 0.005 268.5)",
+          "oklch(48% 0.007 268.5)",
+          "oklch(59% 0.007 268.5)",
+          "oklch(70% 0.005 268.5)",
+          "oklch(82% 0.003 268.5)",
+          "oklch(95% 0.001 268.5)"
+        ]
+      },
+      "studio": {
+        "role": "primary",
+        "displayName": "Studio Black",
+        "canonical": "#17181b",
+        "tonalRamp": [
+          "oklch(15% 0.001 271.1)",
+          "oklch(26% 0.002 271.1)",
+          "oklch(37% 0.004 271.1)",
+          "oklch(48% 0.006 271.1)",
+          "oklch(59% 0.006 271.1)",
+          "oklch(70% 0.005 271.1)",
+          "oklch(82% 0.003 271.1)",
+          "oklch(95% 0.001 271.1)"
+        ]
+      },
+      "studio-ink": {
+        "role": "neutral",
+        "displayName": "Studio Ink",
+        "canonical": "#f4f5f7",
+        "tonalRamp": [
+          "oklch(15% 0.000 264.5)",
+          "oklch(26% 0.001 264.5)",
+          "oklch(37% 0.002 264.5)",
+          "oklch(48% 0.003 264.5)",
+          "oklch(59% 0.003 264.5)",
+          "oklch(70% 0.002 264.5)",
+          "oklch(82% 0.001 264.5)",
+          "oklch(95% 0.000 264.5)"
+        ]
+      },
+      "highlighter": {
+        "role": "tertiary",
+        "displayName": "Highlighter Yellow",
+        "canonical": "#ffe14d",
+        "tonalRamp": [
+          "oklch(15% 0.024 97.5)",
+          "oklch(26% 0.065 97.5)",
+          "oklch(37% 0.110 97.5)",
+          "oklch(48% 0.155 97.5)",
+          "oklch(59% 0.163 97.5)",
+          "oklch(70% 0.122 97.5)",
+          "oklch(82% 0.073 97.5)",
+          "oklch(95% 0.024 97.5)"
+        ]
+      },
+      "highlighter-ink": {
+        "role": "tertiary",
+        "displayName": "Highlighter Ink",
+        "canonical": "#17181b",
+        "tonalRamp": [
+          "oklch(15% 0.001 271.1)",
+          "oklch(26% 0.002 271.1)",
+          "oklch(37% 0.004 271.1)",
+          "oklch(48% 0.006 271.1)",
+          "oklch(59% 0.006 271.1)",
+          "oklch(70% 0.005 271.1)",
+          "oklch(82% 0.003 271.1)",
+          "oklch(95% 0.001 271.1)"
+        ]
+      },
+      "pencil": {
+        "role": "secondary",
+        "displayName": "Director's Pencil",
+        "canonical": "#2f5bd3",
+        "tonalRamp": [
+          "oklch(15% 0.029 265.0)",
+          "oklch(26% 0.077 265.0)",
+          "oklch(37% 0.129 265.0)",
+          "oklch(48% 0.182 265.0)",
+          "oklch(59% 0.192 265.0)",
+          "oklch(70% 0.144 265.0)",
+          "oklch(82% 0.086 265.0)",
+          "oklch(95% 0.029 265.0)"
+        ]
+      },
+      "pencil-wash": {
+        "role": "secondary",
+        "displayName": "Pencil Wash",
+        "canonical": "#eef2fc",
+        "tonalRamp": [
+          "oklch(15% 0.002 268.5)",
+          "oklch(26% 0.006 268.5)",
+          "oklch(37% 0.009 268.5)",
+          "oklch(48% 0.013 268.5)",
+          "oklch(59% 0.014 268.5)",
+          "oklch(70% 0.011 268.5)",
+          "oklch(82% 0.006 268.5)",
+          "oklch(95% 0.002 268.5)"
+        ]
+      },
+      "tape-green": {
+        "role": "state",
+        "displayName": "Spike Tape Green",
+        "canonical": "#1f7a4d",
+        "tonalRamp": [
+          "oklch(15% 0.017 156.8)",
+          "oklch(26% 0.044 156.8)",
+          "oklch(37% 0.074 156.8)",
+          "oklch(48% 0.105 156.8)",
+          "oklch(59% 0.110 156.8)",
+          "oklch(70% 0.083 156.8)",
+          "oklch(82% 0.050 156.8)",
+          "oklch(95% 0.017 156.8)"
+        ]
+      },
+      "tape-amber": {
+        "role": "state",
+        "displayName": "Spike Tape Amber",
+        "canonical": "#9a5b00",
+        "tonalRamp": [
+          "oklch(15% 0.018 65.1)",
+          "oklch(26% 0.048 65.1)",
+          "oklch(37% 0.080 65.1)",
+          "oklch(48% 0.113 65.1)",
+          "oklch(59% 0.119 65.1)",
+          "oklch(70% 0.089 65.1)",
+          "oklch(82% 0.054 65.1)",
+          "oklch(95% 0.018 65.1)"
+        ]
+      },
+      "tape-red": {
+        "role": "state",
+        "displayName": "Spike Tape Red",
+        "canonical": "#c2362b",
+        "tonalRamp": [
+          "oklch(15% 0.027 28.9)",
+          "oklch(26% 0.071 28.9)",
+          "oklch(37% 0.121 28.9)",
+          "oklch(48% 0.170 28.9)",
+          "oklch(59% 0.179 28.9)",
+          "oklch(70% 0.134 28.9)",
+          "oklch(82% 0.080 28.9)",
+          "oklch(95% 0.027 28.9)"
+        ]
+      },
+      "ink-dark": {
+        "role": "neutral",
+        "displayName": "Rehearsal Ink (dark)",
+        "canonical": "#eceef1",
+        "tonalRamp": [
+          "oklch(15% 0.001 258.3)",
+          "oklch(26% 0.002 258.3)",
+          "oklch(37% 0.003 258.3)",
+          "oklch(48% 0.004 258.3)",
+          "oklch(59% 0.005 258.3)",
+          "oklch(70% 0.003 258.3)",
+          "oklch(82% 0.002 258.3)",
+          "oklch(95% 0.001 258.3)"
+        ]
+      },
+      "primary-dark": {
+        "role": "primary",
+        "displayName": "Rehearsal Ink, inverted (dark)",
+        "canonical": "#f1f2f4",
+        "tonalRamp": [
+          "oklch(15% 0.000 264.5)",
+          "oklch(26% 0.001 264.5)",
+          "oklch(37% 0.002 264.5)",
+          "oklch(48% 0.003 264.5)",
+          "oklch(59% 0.003 264.5)",
+          "oklch(70% 0.002 264.5)",
+          "oklch(82% 0.001 264.5)",
+          "oklch(95% 0.000 264.5)"
+        ]
+      },
+      "primary-ink-dark": {
+        "role": "primary",
+        "displayName": "Button Ink (dark)",
+        "canonical": "#121316",
+        "tonalRamp": [
+          "oklch(15% 0.001 271.1)",
+          "oklch(26% 0.003 271.1)",
+          "oklch(37% 0.004 271.1)",
+          "oklch(48% 0.006 271.1)",
+          "oklch(59% 0.006 271.1)",
+          "oklch(70% 0.005 271.1)",
+          "oklch(82% 0.003 271.1)",
+          "oklch(95% 0.001 271.1)"
+        ]
+      },
+      "paper-dark": {
+        "role": "neutral",
+        "displayName": "Charcoal Paper (dark)",
+        "canonical": "#1a1b1f",
+        "tonalRamp": [
+          "oklch(15% 0.001 274.6)",
+          "oklch(26% 0.003 274.6)",
+          "oklch(37% 0.005 274.6)",
+          "oklch(48% 0.008 274.6)",
+          "oklch(59% 0.008 274.6)",
+          "oklch(70% 0.006 274.6)",
+          "oklch(82% 0.004 274.6)",
+          "oklch(95% 0.001 274.6)"
+        ]
+      },
+      "concrete-dark": {
+        "role": "neutral",
+        "displayName": "Black-Box Ground (dark)",
+        "canonical": "#0d0e10",
+        "tonalRamp": [
+          "oklch(15% 0.001 264.4)",
+          "oklch(26% 0.002 264.4)",
+          "oklch(37% 0.003 264.4)",
+          "oklch(48% 0.004 264.4)",
+          "oklch(59% 0.005 264.4)",
+          "oklch(70% 0.003 264.4)",
+          "oklch(82% 0.002 264.4)",
+          "oklch(95% 0.001 264.4)"
+        ]
+      },
+      "ink-muted-dark": {
+        "role": "neutral",
+        "displayName": "Muted Ink (dark)",
+        "canonical": "#a4a8b0",
+        "tonalRamp": [
+          "oklch(15% 0.002 264.5)",
+          "oklch(26% 0.005 264.5)",
+          "oklch(37% 0.008 264.5)",
+          "oklch(48% 0.012 264.5)",
+          "oklch(59% 0.012 264.5)",
+          "oklch(70% 0.009 264.5)",
+          "oklch(82% 0.006 264.5)",
+          "oklch(95% 0.002 264.5)"
+        ]
+      },
+      "rule-dark": {
+        "role": "neutral",
+        "displayName": "Hairline Rule (dark)",
+        "canonical": "#2f3238",
+        "tonalRamp": [
+          "oklch(15% 0.002 264.4)",
+          "oklch(26% 0.005 264.4)",
+          "oklch(37% 0.008 264.4)",
+          "oklch(48% 0.011 264.4)",
+          "oklch(59% 0.011 264.4)",
+          "oklch(70% 0.009 264.4)",
+          "oklch(82% 0.005 264.4)",
+          "oklch(95% 0.002 264.4)"
+        ]
+      },
+      "studio-dark": {
+        "role": "primary",
+        "displayName": "Studio Black (dark)",
+        "canonical": "#000000",
+        "tonalRamp": [
+          "oklch(15% 0.000 0.0)",
+          "oklch(26% 0.000 0.0)",
+          "oklch(37% 0.000 0.0)",
+          "oklch(48% 0.000 0.0)",
+          "oklch(59% 0.000 0.0)",
+          "oklch(70% 0.000 0.0)",
+          "oklch(82% 0.000 0.0)",
+          "oklch(95% 0.000 0.0)"
+        ]
+      },
+      "highlighter-dark": {
+        "role": "tertiary",
+        "displayName": "Highlighter Yellow (dark)",
+        "canonical": "#f5d63d",
+        "tonalRamp": [
+          "oklch(15% 0.025 97.1)",
+          "oklch(26% 0.066 97.1)",
+          "oklch(37% 0.111 97.1)",
+          "oklch(48% 0.156 97.1)",
+          "oklch(59% 0.164 97.1)",
+          "oklch(70% 0.123 97.1)",
+          "oklch(82% 0.074 97.1)",
+          "oklch(95% 0.025 97.1)"
+        ]
+      },
+      "highlighter-ink-dark": {
+        "role": "tertiary",
+        "displayName": "Highlighter Ink (dark)",
+        "canonical": "#121316",
+        "tonalRamp": [
+          "oklch(15% 0.001 271.1)",
+          "oklch(26% 0.003 271.1)",
+          "oklch(37% 0.004 271.1)",
+          "oklch(48% 0.006 271.1)",
+          "oklch(59% 0.006 271.1)",
+          "oklch(70% 0.005 271.1)",
+          "oklch(82% 0.003 271.1)",
+          "oklch(95% 0.001 271.1)"
+        ]
+      },
+      "pencil-dark": {
+        "role": "secondary",
+        "displayName": "Director's Pencil (dark)",
+        "canonical": "#93b0ff",
+        "tonalRamp": [
+          "oklch(15% 0.018 268.2)",
+          "oklch(26% 0.047 268.2)",
+          "oklch(37% 0.080 268.2)",
+          "oklch(48% 0.112 268.2)",
+          "oklch(59% 0.118 268.2)",
+          "oklch(70% 0.089 268.2)",
+          "oklch(82% 0.053 268.2)",
+          "oklch(95% 0.018 268.2)"
+        ]
+      },
+      "pencil-ink-dark": {
+        "role": "secondary",
+        "displayName": "Pencil Ink (dark)",
+        "canonical": "#0c1530",
+        "tonalRamp": [
+          "oklch(15% 0.008 267.5)",
+          "oklch(26% 0.022 267.5)",
+          "oklch(37% 0.037 267.5)",
+          "oklch(48% 0.052 267.5)",
+          "oklch(59% 0.055 267.5)",
+          "oklch(70% 0.041 267.5)",
+          "oklch(82% 0.025 267.5)",
+          "oklch(95% 0.008 267.5)"
+        ]
+      },
+      "pencil-wash-dark": {
+        "role": "secondary",
+        "displayName": "Pencil Wash (dark)",
+        "canonical": "#1d2436",
+        "tonalRamp": [
+          "oklch(15% 0.005 267.6)",
+          "oklch(26% 0.014 267.6)",
+          "oklch(37% 0.024 267.6)",
+          "oklch(48% 0.034 267.6)",
+          "oklch(59% 0.035 267.6)",
+          "oklch(70% 0.027 267.6)",
+          "oklch(82% 0.016 267.6)",
+          "oklch(95% 0.005 267.6)"
+        ]
+      },
+      "tape-green-dark": {
+        "role": "state",
+        "displayName": "Spike Tape Green (dark)",
+        "canonical": "#5fcf95",
+        "tonalRamp": [
+          "oklch(15% 0.020 158.4)",
+          "oklch(26% 0.053 158.4)",
+          "oklch(37% 0.090 158.4)",
+          "oklch(48% 0.127 158.4)",
+          "oklch(59% 0.133 158.4)",
+          "oklch(70% 0.100 158.4)",
+          "oklch(82% 0.060 158.4)",
+          "oklch(95% 0.020 158.4)"
+        ]
+      },
+      "tape-amber-dark": {
+        "role": "state",
+        "displayName": "Spike Tape Amber (dark)",
+        "canonical": "#f0b44c",
+        "tonalRamp": [
+          "oklch(15% 0.021 78.2)",
+          "oklch(26% 0.055 78.2)",
+          "oklch(37% 0.093 78.2)",
+          "oklch(48% 0.130 78.2)",
+          "oklch(59% 0.137 78.2)",
+          "oklch(70% 0.103 78.2)",
+          "oklch(82% 0.062 78.2)",
+          "oklch(95% 0.021 78.2)"
+        ]
+      },
+      "tape-red-dark": {
+        "role": "state",
+        "displayName": "Spike Tape Red (dark)",
+        "canonical": "#ff8a7f",
+        "tonalRamp": [
+          "oklch(15% 0.022 26.6)",
+          "oklch(26% 0.057 26.6)",
+          "oklch(37% 0.097 26.6)",
+          "oklch(48% 0.137 26.6)",
+          "oklch(59% 0.144 26.6)",
+          "oklch(70% 0.108 26.6)",
+          "oklch(82% 0.065 26.6)",
+          "oklch(95% 0.022 26.6)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Home hero only; 2.25rem / 2.75rem / 3.25rem at xs / sm / md."
+      },
+      "score": {
+        "displayName": "Score Numeral",
+        "purpose": "Report overall score, 64px mobile / 88px md, on a highlighter band."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Page titles; 1.875rem on mobile."
+      },
+      "cue": {
+        "displayName": "Interviewer Cue",
+        "purpose": "The question; 1.25rem on mobile; max 36em."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Card and section heads (h6); h5 at 1.5rem for room and section headings."
+      },
+      "line": {
+        "displayName": "Your Line",
+        "purpose": "Candidate answers and the answer field; max 40em."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "General copy, tabular figures."
+      },
+      "note": {
+        "displayName": "Coach Note",
+        "purpose": "Coach notes and questions to the coach."
+      },
+      "speaker": {
+        "displayName": "Speaker Name",
+        "purpose": "Tracked uppercase naming who speaks; colour follows the speaker."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Buttons, tabs, toggles; no text-transform."
+      }
+    },
+    "shadows": [
+      {
+        "name": "slider-thumb-ring",
+        "value": "0 0 0 4px #ffe14d",
+        "purpose": "Highlighter ring on slider thumbs; the only ring in a flat system."
+      },
+      {
+        "name": "focus-outline",
+        "value": "outline: 2px solid #2f5bd3; outline-offset: 2px",
+        "purpose": "Global :focus-visible outline in pencil (#93b0ff in dark)."
+      }
+    ],
+    "motion": [
+      {
+        "name": "highlighter-sweep",
+        "value": "background-size 0% to 100% over 420ms cubic-bezier(0.22, 1, 0.36, 1)",
+        "purpose": "Draws the highlighter across the current scene when it changes; off under reduced motion."
+      },
+      {
+        "name": "caret-blink",
+        "value": "opacity 50% keyframe, 1s step-end infinite",
+        "purpose": "2px ink caret at the end of streaming text; static under reduced motion."
+      },
+      {
+        "name": "dropzone-state",
+        "value": "border-color, background-color 120ms",
+        "purpose": "Resume drop zone hover and drag state."
+      },
+      {
+        "name": "scroll-follow",
+        "value": "scrollIntoView smooth, block end",
+        "purpose": "Room follows new content."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "xs",
+        "value": "0px"
+      },
+      {
+        "name": "sm",
+        "value": "600px"
+      },
+      {
+        "name": "md",
+        "value": "900px"
+      },
+      {
+        "name": "lg",
+        "value": "1200px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Ink pill for the main action on a surface (Start, Submit answer, Continue).",
+      "html": "<button class=\"ds-btn-primary\">Submit answer</button>",
+      "css": ".ds-btn-primary{font-family:\"Atkinson Hyperlegible Next\",system-ui,sans-serif;background:#17181b;color:#fff;border:none;border-radius:999px;padding:11px 26px;font-size:1rem;font-weight:700;letter-spacing:0;cursor:pointer;transition:background-color 250ms cubic-bezier(0.4,0,0.2,1)}.ds-btn-primary:hover{background:#2e2f33}.ds-btn-primary:focus-visible{outline:2px solid #2f5bd3;outline-offset:2px}.ds-btn-primary:disabled{background:rgba(0,0,0,0.12);color:rgba(0,0,0,0.26)}"
+    },
+    {
+      "name": "Outlined Button",
+      "kind": "button",
+      "refersTo": "button-outlined",
+      "description": "Secondary pill bordered in currentColor (End interview, Answer again).",
+      "html": "<button class=\"ds-btn-outlined\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path fill=\"currentColor\" d=\"M14.4 6l-.24-1.2c-.09-.46-.5-.8-.98-.8H6c-.55 0-1 .45-1 1v15c0 .55.45 1 1 1s1-.45 1-1v-6h5.6l.24 1.2c.09.47.5.8.98.8H19c.55 0 1-.45 1-1V7c0-.55-.45-1-1-1z\"/></svg>End interview</button>",
+      "css": ".ds-btn-outlined{font-family:\"Atkinson Hyperlegible Next\",system-ui,sans-serif;display:inline-flex;align-items:center;gap:8px;background:transparent;color:#17181b;border:1px solid currentColor;border-radius:999px;padding:3px 12px;font-size:0.8125rem;font-weight:700;cursor:pointer;transition:background-color 250ms}.ds-btn-outlined:hover{background:rgba(23,24,27,0.04)}.ds-btn-outlined:focus-visible{outline:2px solid #2f5bd3;outline-offset:2px}"
+    },
+    {
+      "name": "Studio Band",
+      "kind": "nav",
+      "refersTo": "studio-band",
+      "description": "Sticky near-black app bar carrying the brand mark and nav.",
+      "html": "<header class=\"ds-band\"><span class=\"ds-band-brand\"><svg width=\"26\" height=\"26\" viewBox=\"0 0 32 32\" aria-hidden=\"true\"><rect width=\"32\" height=\"32\" rx=\"7\" fill=\"#17181b\"/><rect x=\"8\" y=\"6\" width=\"16\" height=\"20\" rx=\"2\" fill=\"#fff\"/><rect x=\"10.5\" y=\"10\" width=\"11\" height=\"3.2\" rx=\"1\" fill=\"#ffe14d\"/><rect x=\"11.5\" y=\"11\" width=\"9\" height=\"1.2\" fill=\"#17181b\"/><rect x=\"11.5\" y=\"16\" width=\"9\" height=\"1.4\" rx=\".7\" fill=\"#17181b\"/><rect x=\"11.5\" y=\"19.5\" width=\"6\" height=\"1.4\" rx=\".7\" fill=\"#17181b\"/></svg>AI Interviewer</span><nav><a class=\"ds-band-link\" href=\"#\">New interview</a><a class=\"ds-band-link\" href=\"#\">Save history</a></nav></header>",
+      "css": ".ds-band{font-family:\"Atkinson Hyperlegible Next\",system-ui,sans-serif;display:flex;align-items:center;justify-content:space-between;height:60px;padding:0 24px;background:#17181b;color:#f4f5f7}.ds-band-brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:1.0625rem;letter-spacing:-0.01em}.ds-band nav{display:flex;gap:4px}.ds-band-link{color:#f4f5f7;text-decoration:none;font-size:0.8125rem;font-weight:700;padding:4px 12px;border-radius:999px;transition:background-color 250ms}.ds-band-link:hover{background:rgba(255,255,255,0.08)}.ds-band-link:focus-visible{outline:2px solid #2f5bd3;outline-offset:2px}"
+    },
+    {
+      "name": "Answer Field",
+      "kind": "input",
+      "refersTo": "input-field",
+      "description": "Outlined paper field; border and label turn pencil on focus.",
+      "html": "<label class=\"ds-field\"><span class=\"ds-speaker\">You</span><textarea class=\"ds-input\" rows=\"4\" placeholder=\"Answer as you would out loud.\"></textarea></label>",
+      "css": ".ds-field{font-family:\"Atkinson Hyperlegible Next\",system-ui,sans-serif;display:block}.ds-speaker{display:block;font-size:0.75rem;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;color:#17181b;margin-bottom:6px}.ds-input{font-family:\"Atkinson Hyperlegible Next\",system-ui,sans-serif;width:100%;box-sizing:border-box;background:#fff;color:#17181b;border:1px solid rgba(0,0,0,0.23);border-radius:6px;padding:16.5px 14px;font-size:1.0625rem;line-height:1.7;resize:vertical}.ds-input:hover{border-color:#17181b}.ds-input:focus{outline:none;border:2px solid #2f5bd3;padding:15.5px 13px}"
+    },
+    {
+      "name": "Score Chip",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "Score band: spike-tape outline, icon, and label together; never colour alone.",
+      "html": "<span class=\"ds-chip\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path fill=\"#1f7a4d\" d=\"M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zM9.29 16.29 5.7 12.7a.996.996 0 1 1 1.41-1.41L10 14.17l6.88-6.88a.996.996 0 1 1 1.41 1.41l-7.59 7.59a.996.996 0 0 1-1.41 0z\"/></svg>8/10 · Strong</span>",
+      "css": ".ds-chip{font-family:\"Atkinson Hyperlegible Next\",system-ui,sans-serif;display:inline-flex;align-items:center;gap:4px;height:24px;padding:0 8px 0 4px;border:1px solid #1f7a4d;border-radius:4px;background:#fff;color:#17181b;font-size:0.8125rem;font-weight:700}"
+    },
+    {
+      "name": "Highlight Tag",
+      "kind": "chip",
+      "refersTo": "highlight-tag",
+      "description": "Ink on highlighter for a run in progress.",
+      "html": "<a class=\"ds-tag\" href=\"#\">In progress · Resume</a>",
+      "css": ".ds-tag{font-family:\"Atkinson Hyperlegible Next\",system-ui,sans-serif;display:inline-block;background:#ffe14d;color:#17181b;font-size:0.8125rem;font-weight:700;padding:4px 8px;border-radius:3px;text-decoration:none}.ds-tag:focus-visible{outline:2px solid #2f5bd3;outline-offset:2px}"
+    },
+    {
+      "name": "Scene Rail",
+      "kind": "custom",
+      "refersTo": "scene-current",
+      "description": "Numbered scenes: done (check), current (highlighter sweep), upcoming (muted).",
+      "html": "<ol class=\"ds-rail\"><li class=\"ds-scene\"><span class=\"ds-num\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" aria-label=\"Answered\"><path fill=\"currentColor\" d=\"M9 16.17 5.53 12.7a.996.996 0 1 0-1.41 1.41l4.18 4.18c.39.39 1.02.39 1.41 0L20.29 7.71a.996.996 0 1 0-1.41-1.41z\"/></svg></span><span class=\"ds-q\">Walk me through a design de…</span></li><li class=\"ds-scene ds-current\" aria-current=\"step\"><span class=\"ds-num\">3</span><span class=\"ds-q\">Tell me about a time resear…</span></li><li class=\"ds-scene ds-upcoming\"><span class=\"ds-num\">4</span><span class=\"ds-q\">Not asked yet</span></li></ol>",
+      "css": "@keyframes ds-sweep{from{background-size:0% 100%}to{background-size:100% 100%}}.ds-rail{font-family:\"Atkinson Hyperlegible Next\",system-ui,sans-serif;list-style:none;margin:0;padding:0;width:240px;display:flex;flex-direction:column;gap:2px}.ds-scene{display:flex;align-items:center;gap:8px;min-height:36px;padding:6px 8px;border-radius:6px;font-size:0.875rem;color:#17181b}.ds-scene:hover{background:rgba(0,0,0,0.04)}.ds-num{width:22px;flex-shrink:0;font-weight:800;display:inline-flex;justify-content:center}.ds-q{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ds-upcoming{color:#55585f}.ds-current{background-image:linear-gradient(#ffe14d,#ffe14d);background-repeat:no-repeat;background-size:100% 100%;font-weight:700;animation:ds-sweep 420ms cubic-bezier(0.22,1,0.36,1)}.ds-current:hover{background-color:transparent}@media (prefers-reduced-motion:reduce){.ds-current{animation:none}}"
+    },
+    {
+      "name": "Script Row with Coach Notes",
+      "kind": "card",
+      "refersTo": "script-page",
+      "description": "A script page: interviewer cue, your line, coach notes in pencil on a wash panel under the line.",
+      "html": "<article class=\"ds-page\"><div class=\"ds-sp\">Interviewer · Question 1</div><div class=\"ds-cue\">Walk me through a design decision you would defend.</div><div class=\"ds-row\"><div><div class=\"ds-sp ds-you\">You</div><p class=\"ds-line\">At Starling I pushed back on a custom date picker the engineers wanted to build.</p></div><aside class=\"ds-notes\"><div class=\"ds-sp ds-coach\">Coach</div><p class=\"ds-note\">Strong, concrete example. Next time, say how you brought the lead round.</p></aside></div></article>",
+      "css": ".ds-page{font-family:\"Atkinson Hyperlegible Next\",system-ui,sans-serif;background:#fff;border:1px solid #d9dbe0;border-radius:6px;padding:40px 48px;color:#17181b;font-variant-numeric:tabular-nums}.ds-sp{font-size:0.75rem;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;color:#55585f;margin-bottom:6px}.ds-you{color:#17181b}.ds-coach{color:#2f5bd3}.ds-cue{font-size:1.5rem;font-weight:700;line-height:1.35;letter-spacing:-0.01em;max-width:36em;margin-bottom:24px}.ds-row{display:flex;flex-direction:column;gap:16px;max-width:42em}.ds-line{margin:0;font-size:1.0625rem;line-height:1.7;max-width:40em}.ds-notes{background:#eef2fc;border-left:1px dashed #2f5bd3;border-radius:6px;padding:16px 20px}.ds-note{margin:0;font-size:0.9375rem;line-height:1.6;color:#2f5bd3}@media (max-width:899px){.ds-page{padding:24px 20px}}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Audition Sides",
+    "overview": "The interview is a rehearsal script you run. A near-black studio band holds the brand and navigation; script pages are bright white sheets (charcoal in dark mode) laid on a cool concrete-grey ground; the ink is near-black. Each exchange is set like a page of sides: the Interviewer's cue in large bold type, your line beneath it in comfortable reading type, and the Coach's notes pencilled in blue directly under your line, on a pencil-wash panel behind a dashed rule. This replaces the chat-bubble transcript (avatars, tinted \"me\" bubbles) the category defaults to.\n\nColour is scarce and assigned by meaning. Highlighter yellow marks where you are and what to look at (the current scene, the overall score, a run in progress, a selected option); director's-pencil blue is the Coach's voice and the interactive accent (links, focus, the coach input); green, amber and red appear only as real score states. Everything else is ink on paper. Density is calm: a single reading column with generous line height, one page per screen, no decoration layered on top.\n\nOne family, Atkinson Hyperlegible Next, carries everything, from the 88px score numeral to the 12px tracked speaker names, with tabular figures throughout. Depth comes from paper on ground and hairline rules, never from shadow.",
+    "keyCharacteristics": [
+      "Black-box studio band over a concrete ground; white script pages with hairline borders.",
+      "Speaker names in tracked uppercase, set like character names in a script.",
+      "Coach notes in pencil blue, under the line they are about, on a pencil-wash panel behind a 1px dashed pencil rule, at reading width (42em).",
+      "Highlighter yellow always sits behind ink-coloured text, never used as text.",
+      "Ink pill buttons; 6px page corners; flat surfaces.",
+      "Light and dark schemes are both first-class and mapped role for role."
+    ],
+    "rules": [
+      {
+        "name": "The Highlighter Rule",
+        "body": "Yellow is a mark laid behind ink-coloured text (`highlighter-ink`); it is never a text colour, and it marks one thing per region: where you are or what matters most.",
+        "section": "colors"
+      },
+      {
+        "name": "The Pencil Rule",
+        "body": "Blue means the Coach or an affordance you can act on. Interviewer and candidate text are always ink.",
+        "section": "colors"
+      },
+      {
+        "name": "The Spike Tape Rule",
+        "body": "Green, amber and red mark real states only, and a state colour always travels with an icon and a label, never alone.",
+        "section": "colors"
+      },
+      {
+        "name": "The Character Name Rule",
+        "body": "Tracked uppercase is reserved for naming who speaks: Interviewer, You, Coach, and their qualifiers (Question n, Attempt n, to the coach). It is not a section label for arbitrary content.",
+        "section": "typography"
+      },
+      {
+        "name": "The One Family Rule",
+        "body": "Atkinson Hyperlegible Next everywhere; contrast comes from weight (400 to 800) and size, with negative tracking only at 1.5rem and above.",
+        "section": "typography"
+      },
+      {
+        "name": "The Paper Lift Rule",
+        "body": "A surface separates from the ground by tone and a hairline border, never by a drop shadow.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do set every exchange as speaker name, then text: muted Interviewer cue at `cue`, ink You line at `line`, pencil Coach note at `note` on the panel under the line.",
+      "Do keep highlighter behind `highlighter-ink` text and keep it to one mark per region.",
+      "Do separate surfaces with paper-on-concrete and a 1px `rule` hairline.",
+      "Do make every button a pill, ink-filled for the main action and outlined in currentColor for the rest.",
+      "Do pair every spike-tape state colour with an icon and a label.",
+      "Do honour `prefers-reduced-motion` on every animation, as the sweep and the caret do.",
+      "Do define every new colour in both schemes, role for role."
+    ],
+    "donts": [
+      "Don't render the transcript as chat bubbles with avatars or tinted \"me\" bubbles.",
+      "Don't use drop shadows on papers, cards or buttons.",
+      "Don't set text in highlighter yellow, or use pencil blue for anything the Interviewer or candidate says.",
+      "Don't use tracked uppercase for anything other than naming who speaks.",
+      "Don't introduce a second typeface or turn off tabular figures.",
+      "Don't use green, amber or red decoratively."
+    ]
+  }
+}

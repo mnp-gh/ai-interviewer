@@ -18,6 +18,9 @@ export function ChipsField({
     <Autocomplete
       multiple
       freeSolo
+      size="small"
+      // Long lists (a resume can list 30 skills) collapse to "+N" until the field is focused.
+      limitTags={8}
       options={[]}
       value={values}
       onChange={(_event, next) => onChange(dedupe(next.flatMap(splitPasted)))}

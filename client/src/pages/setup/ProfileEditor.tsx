@@ -1,6 +1,20 @@
 import AddRounded from "@mui/icons-material/AddRounded";
 import DeleteOutlineRounded from "@mui/icons-material/DeleteOutlineRounded";
-import { Box, Button, Card, CardContent, Divider, Grid, IconButton, Stack, TextField, Typography } from "@mui/material";
+import {
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Collapse,
+  Divider,
+  Grid,
+  IconButton,
+  Link,
+  Stack,
+  TextField,
+  Typography,
+} from "@mui/material";
+import { useState } from "react";
 import type { CandidateProfile } from "../../api/types";
 import { ChipsField, LinesField } from "../../components/ListFields";
 
@@ -12,6 +26,10 @@ export default function ProfileEditor({ profile, onChange }: Props) {
     set({ experience: profile.experience.map((entry, i) => (i === index ? { ...entry, ...changes } : entry)) });
   const setProject = (index: number, changes: Partial<CandidateProfile["projects"][number]>) =>
     set({ projects: profile.projects.map((project, i) => (i === index ? { ...project, ...changes } : project)) });
+
+  const detailCount = profile.experience.length + profile.projects.length + profile.education.length;
+  // The long tail of the profile stays folded until the candidate wants to check it.
+  const [showDetails, setShowDetails] = useState(false);
 
   return (
     <Card sx={{ height: "100%" }}>
@@ -26,10 +44,11 @@ export default function ProfileEditor({ profile, onChange }: Props) {
 
           <Grid container spacing={2}>
             <Grid size={{ xs: 12, sm: 6 }}>
-              <TextField label="Name" value={profile.name ?? ""} onChange={(e) => set({ name: e.target.value })} />
+              <TextField size="small" label="Name" value={profile.name ?? ""} onChange={(e) => set({ name: e.target.value })} />
             </Grid>
             <Grid size={{ xs: 12, sm: 6 }}>
               <TextField
+                size="small"
                 label="Years of experience"
                 type="number"
                 value={profile.yearsOfExperience ?? ""}
@@ -39,6 +58,7 @@ export default function ProfileEditor({ profile, onChange }: Props) {
             </Grid>
             <Grid size={12}>
               <TextField
+                size="small"
                 label="Current role"
                 value={profile.headline ?? ""}
                 onChange={(e) => set({ headline: e.target.value })}
@@ -49,76 +69,123 @@ export default function ProfileEditor({ profile, onChange }: Props) {
           <ChipsField label="Skills" values={profile.skills} onChange={(skills) => set({ skills })} />
 
           <Divider />
-          <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-            Experience
-          </Typography>
-          {profile.experience.map((entry, index) => (
-            <Box key={index} sx={{ p: 2, border: 1, borderColor: "divider", borderRadius: 2 }}>
-              <Stack spacing={2}>
-                <Stack direction="row" spacing={1}>
-                  <TextField size="small" label="Title" value={entry.title} onChange={(e) => setExperience(index, { title: e.target.value })} />
-                  <IconButton
-                    aria-label={`Remove ${entry.title || "experience"}`}
-                    onClick={() => set({ experience: profile.experience.filter((_, i) => i !== index) })}
-                  >
-                    <DeleteOutlineRounded />
-                  </IconButton>
-                </Stack>
-                <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-                  <TextField size="small" label="Company" value={entry.company ?? ""} onChange={(e) => setExperience(index, { company: e.target.value })} />
-                  <TextField size="small" label="Period" value={entry.period ?? ""} onChange={(e) => setExperience(index, { period: e.target.value })} />
-                </Stack>
-                <LinesField
-                  label="Highlights"
-                  values={entry.highlights}
-                  onChange={(highlights) => setExperience(index, { highlights })}
-                  addLabel="Add highlight"
-                />
-              </Stack>
-            </Box>
-          ))}
           <Box>
-            <Button
-              startIcon={<AddRounded />}
-              onClick={() => set({ experience: [...profile.experience, { title: "", company: null, period: null, highlights: [] }] })}
+            <Link
+              component="button"
+              type="button"
+              onClick={() => setShowDetails((shown) => !shown)}
+              aria-expanded={showDetails}
+              sx={{ fontWeight: 700 }}
             >
-              Add experience
-            </Button>
+              {showDetails
+                ? "Hide experience, projects and education"
+                : `Check experience, projects and education (${detailCount})`}
+            </Link>
           </Box>
+          <Collapse in={showDetails} unmountOnExit>
+            <Stack spacing={2.5}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                Experience
+              </Typography>
+              {profile.experience.map((entry, index) => (
+                <Box key={index} sx={{ p: 2, border: 1, borderColor: "divider", borderRadius: 2 }}>
+                  <Stack spacing={2}>
+                    <Stack direction="row" spacing={1}>
+                      <TextField
+                        size="small"
+                        label="Title"
+                        value={entry.title}
+                        onChange={(e) => setExperience(index, { title: e.target.value })}
+                      />
+                      <IconButton
+                        aria-label={`Remove ${entry.title || "experience"}`}
+                        onClick={() => set({ experience: profile.experience.filter((_, i) => i !== index) })}
+                      >
+                        <DeleteOutlineRounded />
+                      </IconButton>
+                    </Stack>
+                    <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                      <TextField
+                        size="small"
+                        label="Company"
+                        value={entry.company ?? ""}
+                        onChange={(e) => setExperience(index, { company: e.target.value })}
+                      />
+                      <TextField
+                        size="small"
+                        label="Period"
+                        value={entry.period ?? ""}
+                        onChange={(e) => setExperience(index, { period: e.target.value })}
+                      />
+                    </Stack>
+                    <LinesField
+                      label="Highlights"
+                      values={entry.highlights}
+                      onChange={(highlights) => setExperience(index, { highlights })}
+                      addLabel="Add highlight"
+                    />
+                  </Stack>
+                </Box>
+              ))}
+              <Box>
+                <Button
+                  startIcon={<AddRounded />}
+                  onClick={() =>
+                    set({ experience: [...profile.experience, { title: "", company: null, period: null, highlights: [] }] })
+                  }
+                >
+                  Add experience
+                </Button>
+              </Box>
 
-          <Divider />
-          <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-            Projects
-          </Typography>
-          {profile.projects.map((project, index) => (
-            <Box key={index} sx={{ p: 2, border: 1, borderColor: "divider", borderRadius: 2 }}>
-              <Stack spacing={2}>
-                <Stack direction="row" spacing={1}>
-                  <TextField size="small" label="Project" value={project.name} onChange={(e) => setProject(index, { name: e.target.value })} />
-                  <IconButton
-                    aria-label={`Remove ${project.name || "project"}`}
-                    onClick={() => set({ projects: profile.projects.filter((_, i) => i !== index) })}
-                  >
-                    <DeleteOutlineRounded />
-                  </IconButton>
-                </Stack>
-                <LinesField
-                  label="Highlights"
-                  values={project.highlights}
-                  onChange={(highlights) => setProject(index, { highlights })}
-                  addLabel="Add highlight"
-                />
-              </Stack>
-            </Box>
-          ))}
-          <Box>
-            <Button startIcon={<AddRounded />} onClick={() => set({ projects: [...profile.projects, { name: "", highlights: [] }] })}>
-              Add project
-            </Button>
-          </Box>
+              <Divider />
+              <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                Projects
+              </Typography>
+              {profile.projects.map((project, index) => (
+                <Box key={index} sx={{ p: 2, border: 1, borderColor: "divider", borderRadius: 2 }}>
+                  <Stack spacing={2}>
+                    <Stack direction="row" spacing={1}>
+                      <TextField
+                        size="small"
+                        label="Project"
+                        value={project.name}
+                        onChange={(e) => setProject(index, { name: e.target.value })}
+                      />
+                      <IconButton
+                        aria-label={`Remove ${project.name || "project"}`}
+                        onClick={() => set({ projects: profile.projects.filter((_, i) => i !== index) })}
+                      >
+                        <DeleteOutlineRounded />
+                      </IconButton>
+                    </Stack>
+                    <LinesField
+                      label="Highlights"
+                      values={project.highlights}
+                      onChange={(highlights) => setProject(index, { highlights })}
+                      addLabel="Add highlight"
+                    />
+                  </Stack>
+                </Box>
+              ))}
+              <Box>
+                <Button
+                  startIcon={<AddRounded />}
+                  onClick={() => set({ projects: [...profile.projects, { name: "", highlights: [] }] })}
+                >
+                  Add project
+                </Button>
+              </Box>
 
-          <Divider />
-          <LinesField label="Education" values={profile.education} onChange={(education) => set({ education })} addLabel="Add education" />
+              <Divider />
+              <LinesField
+                label="Education"
+                values={profile.education}
+                onChange={(education) => set({ education })}
+                addLabel="Add education"
+              />
+            </Stack>
+          </Collapse>
         </Stack>
       </CardContent>
     </Card>

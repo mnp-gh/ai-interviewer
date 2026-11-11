@@ -141,7 +141,7 @@ export default function BriefingCard({ draft, update }: Props) {
     <Card>
       <CardContent>
         <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 0.5 }}>
-          <PublicRounded color="primary" />
+          <PublicRounded />
           <Typography variant="h6" sx={{ flexGrow: 1 }}>
             Role briefing
           </Typography>
@@ -197,9 +197,13 @@ export default function BriefingCard({ draft, update }: Props) {
                 <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
                   Sources
                 </Typography>
-                <Stack component="ol" spacing={0.25} sx={{ pl: 3, m: 0 }}>
+                {/* Numbered by source id, so the list matches the [n] marks in the points above. */}
+                <Stack component="ul" spacing={0.25} sx={{ listStyle: "none", p: 0, m: 0 }}>
                   {briefing.sources.map((source) => (
                     <Typography component="li" variant="caption" key={source.id}>
+                      <Box component="span" sx={{ fontWeight: 700, mr: 0.75 }}>
+                        [{source.id}]
+                      </Box>
                       <Link href={source.url} target="_blank" rel="noopener noreferrer">
                         {source.title}
                       </Link>{" "}

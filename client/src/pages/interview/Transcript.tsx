@@ -1,9 +1,6 @@
-import PersonRounded from "@mui/icons-material/PersonRounded";
-import SchoolRounded from "@mui/icons-material/SchoolRounded";
-import SmartToyRounded from "@mui/icons-material/SmartToyRounded";
-import { Avatar, Box, Paper, Stack, Typography } from "@mui/material";
+import { Box, Stack, Typography } from "@mui/material";
 import { keyframes } from "@mui/material/styles";
-import { Fragment, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import type { TurnView } from "../../api/types";
 
 const blink = keyframes`50% { opacity: 0; }`;
@@ -14,104 +11,162 @@ export function Caret() {
     <Box
       component="span"
       aria-hidden
-      sx={{ display: "inline-block", width: "0.5em", height: "1em", ml: 0.25, mb: "-0.15em", bgcolor: "text.primary", animation: `${blink} 1s step-end infinite` }}
+      sx={{
+        display: "inline-block",
+        width: "2px",
+        height: "1.1em",
+        ml: 0.5,
+        mb: "-0.2em",
+        bgcolor: "text.primary",
+        animation: `${blink} 1s step-end infinite`,
+        "@media (prefers-reduced-motion: reduce)": { animation: "none" },
+      }}
     />
   );
 }
 
-function Bubble({
-  avatar,
-  name,
-  align,
-  tone,
-  children,
-}: {
-  avatar: ReactNode;
-  name: string;
-  align: "left" | "right";
-  tone: "interviewer" | "candidate" | "coach" | "candidateToCoach";
-  children: ReactNode;
-}) {
-  const colors = {
-    interviewer: { bgcolor: "background.paper", borderColor: "divider" },
-    candidate: { bgcolor: "primary.main", color: "primary.contrastText", borderColor: "primary.main" },
-    coach: { bgcolor: "action.hover", borderColor: "secondary.main" },
-    candidateToCoach: { bgcolor: "action.selected", borderColor: "divider" },
-  }[tone];
+/** A speaker's name, set like a character name in a script. */
+export function Speaker({ children, color = "text.secondary" }: { children: ReactNode; color?: string }) {
   return (
-    <Stack direction={align === "right" ? "row-reverse" : "row"} spacing={1.5} sx={{ alignItems: "flex-start" }}>
-      <Avatar
+    <Typography
+      component="div"
+      sx={{
+        fontSize: "0.75rem",
+        fontWeight: 800,
+        letterSpacing: "0.14em",
+        textTransform: "uppercase",
+        color,
+        mb: 0.75,
+      }}
+    >
+      {children}
+    </Typography>
+  );
+}
+
+/** The interviewer's cue: the question, set large; long questions step down so they don't become a wall. */
+export const QuestionBubble = ({ index, children }: { index: number; children: ReactNode }) => {
+  const long = typeof children === "string" && children.length > 140;
+  return (
+    <Box>
+      <Speaker>Interviewer · Question {index + 1}</Speaker>
+      <Typography
+        component="div"
         sx={{
-          width: 36,
-          height: 36,
-          bgcolor: tone === "coach" ? "secondary.main" : tone === "interviewer" ? "grey.700" : "primary.main",
+          fontSize: long ? { xs: "1.0625rem", md: "1.1875rem" } : { xs: "1.1875rem", md: "1.375rem" },
+          lineHeight: long ? 1.5 : 1.4,
+          fontWeight: long ? 600 : 700,
+          letterSpacing: "-0.005em",
+          maxWidth: "40em",
+          whiteSpace: "pre-wrap",
         }}
       >
-        {avatar}
-      </Avatar>
-      <Box sx={{ maxWidth: { xs: "85%", md: "75%" } }}>
-        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.5, textAlign: align }}>
-          {name}
-        </Typography>
-        <Paper variant="outlined" sx={{ px: 2, py: 1.5, borderRadius: 3, whiteSpace: "pre-wrap", ...colors }}>
-          {children}
-        </Paper>
-      </Box>
+        {children}
+      </Typography>
+    </Box>
+  );
+};
+
+/** The candidate's line. */
+export const AnswerBubble = ({ label = "You", children }: { label?: string; children: ReactNode }) => (
+  <Box>
+    <Speaker color="text.primary">{label}</Speaker>
+    <Typography component="div" sx={{ fontSize: "1.0625rem", lineHeight: 1.7, maxWidth: "42em", whiteSpace: "pre-wrap" }}>
+      {children}
+    </Typography>
+  </Box>
+);
+
+/** The candidate's question to the coach. */
+export const CoachQuestionBubble = ({ children }: { children: ReactNode }) => (
+  <Box>
+    <Speaker>You · to the coach</Speaker>
+    <Typography component="div" sx={{ fontSize: "0.9375rem", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+      {children}
+    </Typography>
+  </Box>
+);
+
+/** The coach's note, written in director's pencil. */
+export const FeedbackBubble = ({ children }: { children: ReactNode }) => (
+  <Box>
+    <Speaker color="script.pencil">Coach</Speaker>
+    <Typography component="div" sx={{ fontSize: "0.9375rem", lineHeight: 1.65, color: "script.pencil", whiteSpace: "pre-wrap" }}>
+      {children}
+    </Typography>
+  </Box>
+);
+
+/** The coach's notes on a line: pencilled under it, behind a dashed rule, at reading width. */
+export function CoachNotes({ children }: { children: ReactNode }) {
+  return (
+    <Stack
+      spacing={2}
+      sx={{
+        maxWidth: "42em",
+        bgcolor: "script.pencilWash",
+        borderLeft: "1px dashed",
+        borderColor: "script.pencil",
+        borderRadius: 1,
+        px: { xs: 2, sm: 2.5 },
+        py: 2,
+      }}
+    >
+      {children}
     </Stack>
   );
 }
 
-export const QuestionBubble = ({ index, children }: { index: number; children: ReactNode }) => (
-  <Bubble avatar={<SmartToyRounded fontSize="small" />} name={`Interviewer · Question ${index + 1}`} align="left" tone="interviewer">
-    <Typography sx={{ fontSize: "1.05rem" }}>{children}</Typography>
-  </Bubble>
-);
-
-export const AnswerBubble = ({ label = "You", children }: { label?: string; children: ReactNode }) => (
-  <Bubble avatar={<PersonRounded fontSize="small" />} name={label} align="right" tone="candidate">
-    <Typography>{children}</Typography>
-  </Bubble>
-);
-
-export const CoachQuestionBubble = ({ children }: { children: ReactNode }) => (
-  <Bubble avatar={<PersonRounded fontSize="small" />} name="You · to the coach" align="right" tone="candidateToCoach">
-    <Typography variant="body2" sx={{ fontSize: "0.95rem" }}>
-      {children}
-    </Typography>
-  </Bubble>
-);
-
-export const FeedbackBubble = ({ children }: { children: ReactNode }) => (
-  <Bubble avatar={<SchoolRounded fontSize="small" />} name="Coach" align="left" tone="coach">
-    <Typography variant="body2" sx={{ fontSize: "0.95rem" }}>
-      {children}
-    </Typography>
-  </Bubble>
-);
+/** A line and, when there are any, the coach's notes under it. */
+export function ScriptRow({ line, notes }: { line: ReactNode; notes?: ReactNode }) {
+  return (
+    <Stack spacing={2}>
+      {line}
+      {notes && <CoachNotes>{notes}</CoachNotes>}
+    </Stack>
+  );
+}
 
 /** One question with every attempt at it, each attempt's feedback, and the coach chat that followed it. */
-export function TurnTranscript({ turn, showCoaching }: { turn: TurnView; showCoaching: boolean }) {
+export function TurnTranscript({
+  turn,
+  showCoaching,
+  hideQuestion = false,
+}: {
+  turn: TurnView;
+  showCoaching: boolean;
+  /** For when the question is already shown above, as in the report. */
+  hideQuestion?: boolean;
+}) {
   const attempts = [...turn.previousAttempts, ...(turn.answer ? [{ answer: turn.answer, feedback: turn.feedback }] : [])];
   const numbered = turn.previousAttempts.length > 0;
   return (
-    <Stack spacing={2}>
-      <QuestionBubble index={turn.index}>{turn.question}</QuestionBubble>
-      {attempts.map((attempt, index) => (
-        <Fragment key={index}>
-          <AnswerBubble label={numbered ? `You · Attempt ${index + 1}` : "You"}>{attempt.answer}</AnswerBubble>
-          {showCoaching && attempt.feedback && <FeedbackBubble>{attempt.feedback}</FeedbackBubble>}
-          {showCoaching &&
-            turn.coachMessages
-              .filter((message) => message.attempt === index)
-              .map((message, i) =>
-                message.role === "candidate" ? (
-                  <CoachQuestionBubble key={i}>{message.content}</CoachQuestionBubble>
-                ) : (
-                  <FeedbackBubble key={i}>{message.content}</FeedbackBubble>
-                )
-              )}
-        </Fragment>
-      ))}
+    <Stack spacing={3}>
+      {!hideQuestion && <QuestionBubble index={turn.index}>{turn.question}</QuestionBubble>}
+      {attempts.map((attempt, index) => {
+        const chat = showCoaching ? turn.coachMessages.filter((message) => message.attempt === index) : [];
+        const hasNotes = showCoaching && (attempt.feedback || chat.length > 0);
+        return (
+          <ScriptRow
+            key={index}
+            line={<AnswerBubble label={numbered ? `You · Attempt ${index + 1}` : "You"}>{attempt.answer}</AnswerBubble>}
+            notes={
+              hasNotes ? (
+                <>
+                  {attempt.feedback && <FeedbackBubble>{attempt.feedback}</FeedbackBubble>}
+                  {chat.map((message, i) =>
+                    message.role === "candidate" ? (
+                      <CoachQuestionBubble key={i}>{message.content}</CoachQuestionBubble>
+                    ) : (
+                      <FeedbackBubble key={i}>{message.content}</FeedbackBubble>
+                    ),
+                  )}
+                </>
+              ) : undefined
+            }
+          />
+        );
+      })}
     </Stack>
   );
 }

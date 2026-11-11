@@ -1,7 +1,4 @@
-import AutoAwesomeRounded from "@mui/icons-material/AutoAwesomeRounded";
-import CheckRounded from "@mui/icons-material/CheckRounded";
 import RefreshRounded from "@mui/icons-material/RefreshRounded";
-import TrendingUpRounded from "@mui/icons-material/TrendingUpRounded";
 import {
   Alert,
   Box,
@@ -10,10 +7,6 @@ import {
   CardContent,
   CircularProgress,
   Grid,
-  List,
-  ListItem,
-  ListItemIcon,
-  ListItemText,
   Stack,
   Typography,
 } from "@mui/material";
@@ -45,10 +38,9 @@ function MatchCard({ draft, update }: Props) {
   const { match } = draft;
 
   return (
-    <Card sx={{ borderColor: "primary.main" }}>
+    <Card sx={{ borderColor: "text.primary", borderWidth: 2 }}>
       <CardContent>
         <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1 }}>
-          <AutoAwesomeRounded color="primary" />
           <Typography variant="h6" sx={{ flexGrow: 1 }}>
             How you match
           </Typography>
@@ -66,37 +58,35 @@ function MatchCard({ draft, update }: Props) {
         {refresh.error && <Alert severity="error" sx={{ mb: 1 }}>{refresh.error.message}</Alert>}
         {match ? (
           <Box sx={{ opacity: draft.matchStale ? 0.6 : 1 }}>
-            <Typography sx={{ mb: 1 }}>{match.summary}</Typography>
-            <Grid container spacing={2}>
+            <Typography sx={{ mb: 2.5, lineHeight: 1.7, maxWidth: "48em" }}>{match.summary}</Typography>
+            <Grid container spacing={3}>
               <Grid size={{ xs: 12, md: 6 }}>
-                <Typography variant="subtitle2" color="success.main">
+                <Typography variant="subtitle2" sx={{ mb: 1 }}>
                   Where you're strong
                 </Typography>
-                <List dense disablePadding>
+                <Stack component="ul" spacing={1} sx={{ listStyle: "none", p: 0, m: 0 }}>
                   {match.strengths.map((item) => (
-                    <ListItem key={item} disableGutters>
-                      <ListItemIcon sx={{ minWidth: 32 }}>
-                        <CheckRounded color="success" fontSize="small" />
-                      </ListItemIcon>
-                      <ListItemText primary={item} />
-                    </ListItem>
+                    <Typography component="li" key={item} sx={{ lineHeight: 1.6 }}>
+                      <Box component="mark" sx={{ bgcolor: "script.highlight", color: "script.highlightInk", px: 0.5, boxDecorationBreak: "clone", WebkitBoxDecorationBreak: "clone" }}>
+                        {item}
+                      </Box>
+                    </Typography>
                   ))}
-                </List>
+                </Stack>
               </Grid>
               <Grid size={{ xs: 12, md: 6 }}>
-                <Typography variant="subtitle2" color="warning.main">
-                  What to prepare for
-                </Typography>
-                <List dense disablePadding>
-                  {match.gaps.map((item) => (
-                    <ListItem key={item} disableGutters>
-                      <ListItemIcon sx={{ minWidth: 32 }}>
-                        <TrendingUpRounded color="warning" fontSize="small" />
-                      </ListItemIcon>
-                      <ListItemText primary={item} />
-                    </ListItem>
-                  ))}
-                </List>
+                <Box sx={{ borderLeft: "1px dashed", borderColor: "script.pencil", pl: 2.5 }}>
+                  <Typography variant="subtitle2" sx={{ mb: 1, color: "script.pencil" }}>
+                    What to prepare for
+                  </Typography>
+                  <Stack component="ul" spacing={1} sx={{ listStyle: "none", p: 0, m: 0 }}>
+                    {match.gaps.map((item) => (
+                      <Typography component="li" key={item} sx={{ color: "script.pencil", lineHeight: 1.6 }}>
+                        {item}
+                      </Typography>
+                    ))}
+                  </Stack>
+                </Box>
               </Grid>
             </Grid>
           </Box>
@@ -118,19 +108,18 @@ export default function ReviewStep({ draft, update }: Props) {
   return (
     <Stack spacing={3}>
       <MatchCard draft={draft} update={update} />
-      <Grid container spacing={3}>
+      {/* Side by side at equal height, so neither column leaves a hole; the briefing reads full width below. */}
+      <Grid container spacing={3} sx={{ alignItems: "stretch" }}>
+        <Grid size={{ xs: 12, md: 6 }}>
+          <RequirementsEditor requirements={requirements} onChange={setRequirements} />
+        </Grid>
         <Grid size={{ xs: 12, md: 6 }}>
           <ProfileEditor profile={profile} onChange={setProfile} />
         </Grid>
-        <Grid size={{ xs: 12, md: 6 }}>
-          <Stack spacing={3}>
-            <RequirementsEditor requirements={requirements} onChange={setRequirements} />
-            <BriefingCard draft={draft} update={update} />
-          </Stack>
-        </Grid>
       </Grid>
+      <BriefingCard draft={draft} update={update} />
       <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-        <Button onClick={() => update({ step: 0 })}>Back</Button>
+        <Button color="inherit" onClick={() => update({ step: 0 })}>Back</Button>
         <Button variant="contained" size="large" disabled={!canContinue} onClick={() => update({ step: 2 })}>
           Looks right, continue
         </Button>

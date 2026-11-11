@@ -1,24 +1,24 @@
+import CheckRounded from "@mui/icons-material/CheckRounded";
+import ExpandMoreRounded from "@mui/icons-material/ExpandMoreRounded";
 import FlagRounded from "@mui/icons-material/FlagRounded";
 import ReplayRounded from "@mui/icons-material/ReplayRounded";
 import SendRounded from "@mui/icons-material/SendRounded";
 import {
-  Alert,
   Box,
   Button,
-  Card,
-  CardContent,
-  Chip,
   CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
   DialogContentText,
   DialogTitle,
-  LinearProgress,
+  Divider,
+  Paper,
   Stack,
   TextField,
   Typography,
 } from "@mui/material";
+import { keyframes, type Theme } from "@mui/material/styles";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, ApiError } from "../../api/client";
@@ -32,14 +32,168 @@ import {
   MAX_RETRIES,
   MODE_LABELS,
   type InterviewView,
+  type TurnView,
 } from "../../api/types";
 import ErrorPanel from "./ErrorPanel";
-import { AnswerBubble, Caret, CoachQuestionBubble, FeedbackBubble, QuestionBubble, TurnTranscript } from "./Transcript";
+import {
+  AnswerBubble,
+  Caret,
+  CoachQuestionBubble,
+  FeedbackBubble,
+  QuestionBubble,
+  ScriptRow,
+  Speaker,
+  TurnTranscript,
+} from "./Transcript";
 
 type Action = "question" | "answer" | "feedback" | "coach" | "retry" | "end";
+type SceneState = "done" | "current" | "upcoming";
+
+/** A question's opening words, for the scene list; the full text is in the script. */
+const shorten = (text: string) => (text.length > 42 ? `${text.slice(0, 40).trimEnd()}…` : text);
+
+/**
+ * The run-through as numbered scenes: done, current (highlighted) and still to come. A rail on wide
+ * screens, a strip on narrow ones; each asked scene links to its place in the script.
+ */
+function SceneList({
+  turns,
+  length,
+  current,
+  onSelect,
+}: {
+  turns: TurnView[];
+  length: number;
+  current: number;
+  /** Opens an earlier question before the link scrolls to it. */
+  onSelect: (index: number) => void;
+}) {
+  const scenes = Array.from({ length }, (_, index) => {
+    const turn = turns[index];
+    const answered = Boolean(turn && (turn.answer || turn.previousAttempts.length));
+    const state: SceneState = index === current - 1 ? "current" : answered ? "done" : "upcoming";
+    return { index, turn, state };
+  });
+  return (
+    <Box
+      component="ol"
+      aria-label="Questions"
+      sx={{
+        listStyle: "none",
+        m: 0,
+        p: 0,
+        display: "flex",
+        flexDirection: { xs: "row", md: "column" },
+        gap: { xs: 0.75, md: 0.25 },
+        overflowX: { xs: "auto", md: "visible" },
+        pb: { xs: 0.5, md: 0 },
+      }}
+    >
+      {scenes.map(({ index, turn, state }) => {
+        const content = (
+          <>
+            <Box
+              component="span"
+              sx={{ width: 22, flexShrink: 0, fontWeight: 800, textAlign: { md: "right" }, display: "inline-flex", justifyContent: "center" }}
+            >
+              {state === "done" ? <CheckRounded sx={{ fontSize: 18 }} aria-label="Answered" /> : index + 1}
+            </Box>
+            <Box
+              component="span"
+              sx={{ display: { xs: "none", md: "block" }, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+            >
+              {turn ? shorten(turn.question) : "Not asked yet"}
+            </Box>
+          </>
+        );
+        const sx = {
+          display: "flex",
+          alignItems: "center",
+          gap: 1,
+          px: { xs: 1.25, md: 1 },
+          py: 0.75,
+          minHeight: 36,
+          borderRadius: 1,
+          fontSize: "0.875rem",
+          color: state === "upcoming" ? "text.secondary" : "text.primary",
+          textDecoration: "none",
+          flexShrink: 0,
+          border: { xs: 1, md: 0 },
+          borderColor: "divider",
+          ...(state === "current" && {
+            backgroundImage: (theme: Theme) =>
+              `linear-gradient(${theme.vars!.palette.script.highlight}, ${theme.vars!.palette.script.highlight})`,
+            backgroundRepeat: "no-repeat",
+            backgroundSize: "100% 100%",
+            animation: `${sweep} 420ms cubic-bezier(0.22, 1, 0.36, 1)`,
+            "@media (prefers-reduced-motion: reduce)": { animation: "none" },
+            color: "script.highlightInk",
+            fontWeight: 700,
+            borderColor: "transparent",
+          }),
+        } as const;
+        return (
+          <li key={index} aria-current={state === "current" ? "step" : undefined}>
+            {turn ? (
+              <Box component="a" href={`#scene-${index}`} title={turn.question} onClick={() => onSelect(index)} sx={{ ...sx, "&:hover": state === "current" ? {} : { bgcolor: "action.hover" } }}>
+                {content}
+              </Box>
+            ) : (
+              <Box sx={sx}>{content}</Box>
+            )}
+          </li>
+        );
+      })}
+    </Box>
+  );
+}
+
+/** An answered question folded to one line; opens to its full transcript. */
+function FoldButton({ index, question, open, onToggle }: { index: number; question: string; open: boolean; onToggle: () => void }) {
+  return (
+    <Box
+      component="button"
+      type="button"
+      onClick={onToggle}
+      aria-expanded={open}
+      sx={{
+        all: "unset",
+        boxSizing: "border-box",
+        cursor: "pointer",
+        display: "flex",
+        alignItems: "center",
+        gap: 1.5,
+        width: "100%",
+        py: 0.5,
+        borderRadius: 1,
+        color: "text.secondary",
+        "&:hover": { color: "text.primary" },
+        "&:focus-visible": { outline: "2px solid", outlineColor: "secondary.main", outlineOffset: 2 },
+      }}
+    >
+      <CheckRounded sx={{ fontSize: 18, flexShrink: 0 }} />
+      <Typography component="span" sx={{ fontWeight: 600, flexShrink: 0, color: "text.primary" }}>
+        Question {index + 1}
+      </Typography>
+      <Typography component="span" noWrap sx={{ flexGrow: 1, minWidth: 0 }}>
+        {open ? "" : question}
+      </Typography>
+      <Typography component="span" variant="body2" sx={{ fontWeight: 700, flexShrink: 0 }}>
+        {open ? "Hide" : "Show"}
+      </Typography>
+      <ExpandMoreRounded sx={{ fontSize: 20, flexShrink: 0, transform: open ? "rotate(180deg)" : "none", transition: "transform 160ms ease-out" }} />
+    </Box>
+  );
+}
+
+const SEND_KEYS = /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘ + Enter" : "Ctrl + Enter";
+
+/** The highlighter drawn across the current scene when it changes. */
+const sweep = keyframes`from { background-size: 0% 100%; } to { background-size: 100% 100%; }`;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const isConflict = (error: unknown) => error instanceof ApiError && error.code === "CONFLICT";
+
 
 /** The unsent answer for a question, kept per tab so a refresh doesn't lose it. */
 function useAnswerDraft(key: string) {
@@ -87,6 +241,15 @@ export default function InterviewRoom({ interview }: { interview: InterviewView 
   const [failure, setFailure] = useState<{ action: Action; error: Error } | null>(null);
   const [confirmEnd, setConfirmEnd] = useState(false);
   const [coachDraft, setCoachDraft] = useState("");
+  // Earlier questions fold away so the current one has the page; the candidate can reopen any of them.
+  const [openTurns, setOpenTurns] = useState<Set<number>>(() => new Set());
+  const toggleTurn = (index: number, open?: boolean) =>
+    setOpenTurns((current) => {
+      const next = new Set(current);
+      if (open ?? !next.has(index)) next.add(index);
+      else next.delete(index);
+      return next;
+    });
   const [sentCoachMessage, setSentCoachMessage] = useState<string | null>(null);
   const [answer, setAnswer] = useAnswerDraft(`ai-interviewer.answer.${id}.${turns.length}`);
   const bottom = useRef<HTMLDivElement>(null);
@@ -214,215 +377,281 @@ export default function InterviewRoom({ interview }: { interview: InterviewView 
   // The question on screen: the one streaming in, the one waiting for an answer, or the last one answered.
   const currentNumber = busy === "question" ? turns.length + 1 : waitingForAnswer ? turns.length : answeredCount;
 
-  return (
-    <Stack spacing={3} sx={{ maxWidth: 860, mx: "auto" }}>
-      <Card>
-        <CardContent>
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ justifyContent: "space-between", alignItems: { sm: "flex-start" } }}>
-            <Box>
-              <Typography variant="h5" component="h1">
-                {setup.requirements.title}
-                {setup.requirements.company ? ` · ${setup.requirements.company}` : ""}
-              </Typography>
-              <Stack direction="row" spacing={1} useFlexGap sx={{ mt: 1, flexWrap: "wrap" }}>
-                <Chip size="small" label={INTERVIEW_TYPE_LABELS[setup.interviewType]} />
-                <Chip size="small" label={DIFFICULTY_LABELS[setup.difficulty]} />
-                <Chip size="small" label={`${MODE_LABELS[setup.mode].label} mode`} />
-                <Chip size="small" variant="outlined" label={modelLabel} />
-              </Stack>
-            </Box>
-            <Button
-              variant="outlined"
-              color="inherit"
-              startIcon={<FlagRounded />}
-              disabled={!answeredCount || busy !== null}
-              onClick={() => (allAnswered ? end() : setConfirmEnd(true))}
-              sx={{ flexShrink: 0 }}
-            >
-              End interview
-            </Button>
-          </Stack>
-          <Box sx={{ mt: 2 }}>
-            <Stack direction="row" sx={{ justifyContent: "space-between", mb: 0.5 }}>
-              <Typography variant="body2" color="text.secondary">
-                {currentNumber ? `Question ${currentNumber} of ${setup.length}` : `${setup.length} questions`}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {answeredCount} answered
-              </Typography>
-            </Stack>
-            <LinearProgress variant="determinate" value={(answeredCount / setup.length) * 100} sx={{ height: 8, borderRadius: 4 }} />
+
+  const header = (
+    <Box>
+      <Typography variant="h5" component="h1" sx={{ lineHeight: 1.25, overflowWrap: "anywhere" }}>
+        {setup.requirements.title}
+        {setup.requirements.company && (
+          <Box component="span" sx={{ display: "block", color: "text.secondary", fontWeight: 600, fontSize: "1rem", mt: 0.5 }}>
+            {setup.requirements.company}
           </Box>
-        </CardContent>
-      </Card>
+        )}
+      </Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5, lineHeight: 1.7 }}>
+        {INTERVIEW_TYPE_LABELS[setup.interviewType]} · {DIFFICULTY_LABELS[setup.difficulty]} · {MODE_LABELS[setup.mode].label} mode
+        <br />
+        Interviewer: {modelLabel}
+      </Typography>
+    </Box>
+  );
 
-      <Stack spacing={2.5} aria-live="polite">
-        {turns.map((turn) => (
-          <TurnTranscript key={turn.index} turn={turn} showCoaching={coach} />
-        ))}
+  const endButton = (
+    <Button
+      variant="outlined"
+      color="inherit"
+      size="small"
+      startIcon={<FlagRounded />}
+      disabled={!answeredCount || busy !== null}
+      onClick={() => (allAnswered ? end() : setConfirmEnd(true))}
+    >
+      End interview
+    </Button>
+  );
 
-        {busy === "question" && (
-          <QuestionBubble index={turns.length}>
-            {streamText || <Typography component="span" color="text.secondary">Thinking of a question…</Typography>}
-            <Caret />
-          </QuestionBubble>
-        )}
-        {busy === "answer" && sentAnswer && (
-          <AnswerBubble label={last?.previousAttempts.length ? `You · Attempt ${last.previousAttempts.length + 1}` : "You"}>
-            {sentAnswer}
-          </AnswerBubble>
-        )}
-        {busy === "coach" && sentCoachMessage && (
-          <>
-            <CoachQuestionBubble>{sentCoachMessage}</CoachQuestionBubble>
-            <FeedbackBubble>
-              {streamText || "Thinking…"}
-              <Caret />
-            </FeedbackBubble>
-          </>
-        )}
-        {(busy === "answer" || busy === "feedback") && coach && (
-          <FeedbackBubble>
-            {streamText || "Reviewing your answer…"}
-            <Caret />
-          </FeedbackBubble>
-        )}
-        {busy === "answer" && !coach && (
-          <Typography color="text.secondary" sx={{ textAlign: "center" }}>
-            Answer saved.
+  const nextSteps = !busy && !failure && !waitingForAnswer && last?.answer && (
+    <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} useFlexGap sx={{ alignItems: { sm: "center" }, flexWrap: "wrap" }}>
+      {allAnswered ? (
+        <Button variant="contained" onClick={end}>
+          Finish and see my report
+        </Button>
+      ) : (
+        coach && (
+          <Button variant="contained" onClick={() => void askQuestion()}>
+            Next question
+          </Button>
+        )
+      )}
+      {coach && retriesLeft > 0 && (
+        <Button variant="outlined" color="inherit" startIcon={<ReplayRounded />} onClick={() => void answerAgain()}>
+          Try answering again ({retriesLeft} left)
+        </Button>
+      )}
+      {feedbackMissing && <Button onClick={() => void retryFeedback()}>Get feedback on this answer</Button>}
+    </Stack>
+  );
+
+  // One quiet line under the coach's notes: a question to the coach is optional, so it never competes with the next step.
+  const coachBox = canCoach && !busy && coachQuestionsLeft > 0 && (
+    <Box sx={{ maxWidth: "42em" }}>
+      <Stack direction="row" spacing={1} sx={{ alignItems: "flex-start" }}>
+        <TextField
+          size="small"
+          multiline
+          maxRows={6}
+          value={coachDraft}
+          onChange={(event) => setCoachDraft(event.target.value.slice(0, MAX_COACH_MESSAGE_CHARS))}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && !event.shiftKey) {
+              event.preventDefault();
+              void askCoach();
+            }
+          }}
+          placeholder="Ask the coach, e.g. what would a strong answer sound like?"
+          slotProps={{ htmlInput: { "aria-label": "Message to the coach" } }}
+        />
+        <Button
+          variant="outlined"
+          color="secondary"
+          endIcon={<SendRounded />}
+          disabled={!coachDraft.trim()}
+          onClick={() => void askCoach()}
+          sx={{ flexShrink: 0, minHeight: 40 }}
+        >
+          Ask
+        </Button>
+      </Stack>
+      <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.75 }}>
+        {coachQuestionsLeft} of {MAX_COACH_MESSAGES} questions left. Not scored, and the interviewer doesn't see it.
+      </Typography>
+    </Box>
+  );
+
+  return (
+    <Box
+      sx={{
+        display: "grid",
+        gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "240px minmax(0, 1fr)" },
+        gap: { xs: 2.5, md: 4 },
+        alignItems: "start",
+      }}
+    >
+      <Stack spacing={3} sx={{ position: { md: "sticky" }, top: { md: 92 }, minWidth: 0 }}>
+        {header}
+        <Box>
+          <Typography variant="body2" sx={{ fontWeight: 700, mb: 1 }}>
+            {currentNumber ? `Question ${currentNumber} of ${setup.length}` : `${setup.length} questions`}
+            <Box component="span" sx={{ color: "text.secondary", fontWeight: 400 }}>
+              {" "}· {answeredCount} answered
+            </Box>
           </Typography>
-        )}
+          <SceneList
+            turns={turns}
+            length={setup.length}
+            current={interview.status === "in_progress" ? currentNumber : 0}
+            onSelect={(index) => toggleTurn(index, true)}
+          />
+        </Box>
+        <Box>{endButton}</Box>
       </Stack>
 
-      {busy === "end" && (
-        <Card>
-          <CardContent>
-            <Stack spacing={1.5} sx={{ alignItems: "center", py: 2 }}>
-              <CircularProgress />
-              <Typography>Writing your report…</Typography>
+      <Paper
+        variant="outlined"
+        sx={{ borderColor: "script.rule", px: { xs: 2.5, sm: 4, md: 6 }, py: { xs: 3, md: 5 }, minWidth: 0 }}
+      >
+        <Stack spacing={4} aria-live="polite" divider={<Divider flexItem sx={{ borderColor: "script.rule" }} />}>
+          {turns.length > 1 && (
+            <Stack spacing={1}>
+              {turns.slice(0, -1).map((turn) => {
+                const open = openTurns.has(turn.index);
+                return (
+                  <Stack key={turn.index} id={`scene-${turn.index}`} spacing={3} sx={{ scrollMarginTop: 96, pb: open ? 3 : 0 }}>
+                    <FoldButton index={turn.index} question={turn.question} open={open} onToggle={() => toggleTurn(turn.index)} />
+                    {open && <TurnTranscript turn={turn} showCoaching={coach} />}
+                  </Stack>
+                );
+              })}
             </Stack>
-          </CardContent>
-        </Card>
-      )}
+          )}
 
-      {failure && (
-        <ErrorPanel
-          error={failure.error}
-          currentModelId={setup.modelId}
-          busy={busy !== null}
-          onRetry={() => retry(failure.action)}
-          onSwitchModel={(modelId) => void switchModel(modelId)}
-        />
-      )}
+          {last && (
+            <Stack id={`scene-${last.index}`} spacing={3} sx={{ scrollMarginTop: 96 }}>
+                <TurnTranscript turn={last} showCoaching={coach} />
+                {busy === "answer" && sentAnswer && (
+                  <ScriptRow
+                    line={
+                      <AnswerBubble label={last?.previousAttempts.length ? `You · Attempt ${last.previousAttempts.length + 1}` : "You"}>
+                        {sentAnswer}
+                      </AnswerBubble>
+                    }
+                    notes={
+                      coach ? (
+                        <FeedbackBubble>
+                          {streamText || "Reviewing your answer…"}
+                          <Caret />
+                        </FeedbackBubble>
+                      ) : undefined
+                    }
+                  />
+                )}
+                {busy === "feedback" && coach && (
+                  <ScriptRow
+                    line={null}
+                    notes={
+                      <FeedbackBubble>
+                        {streamText || "Reviewing your answer…"}
+                        <Caret />
+                      </FeedbackBubble>
+                    }
+                  />
+                )}
+                {busy === "coach" && sentCoachMessage && (
+                  <ScriptRow
+                    line={null}
+                    notes={
+                      <>
+                        <CoachQuestionBubble>{sentCoachMessage}</CoachQuestionBubble>
+                        <FeedbackBubble>
+                          {streamText || "Thinking…"}
+                          <Caret />
+                        </FeedbackBubble>
+                      </>
+                    }
+                  />
+                )}
+                {coachBox}
+              {nextSteps && <Box sx={{ pt: 1 }}>{nextSteps}</Box>}
+              </Stack>
+          )}
 
-      {waitingForAnswer && busy !== "answer" && (
-        <Card>
-          <CardContent>
-            <TextField
-              label="Your answer"
-              multiline
-              minRows={5}
-              maxRows={16}
-              value={answer}
-              onChange={(event) => setAnswer(event.target.value.slice(0, MAX_ANSWER_CHARS))}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) void submitAnswer();
-              }}
-              placeholder={
-                last?.previousAttempts.length
-                  ? "Try again, using the feedback. Your best attempt counts in the report."
-                  : "Answer as you would out loud. Specific examples and results make the strongest answers."
-              }
-              autoFocus
+          {busy === "question" && (
+            <QuestionBubble index={turns.length}>
+              {streamText || (
+                <Typography component="span" color="text.secondary" sx={{ font: "inherit" }}>
+                  Thinking of a question…
+                </Typography>
+              )}
+              <Caret />
+            </QuestionBubble>
+          )}
+
+          {busy === "answer" && !coach && (
+            <Typography color="text.secondary">Answer saved. The next question is on its way.</Typography>
+          )}
+
+          {busy === "end" && (
+            <Stack direction="row" spacing={2} sx={{ alignItems: "center", py: 1 }}>
+              <CircularProgress size={22} color="inherit" />
+              <Typography sx={{ fontWeight: 600 }}>Writing your report…</Typography>
+            </Stack>
+          )}
+
+          {failure && (
+            <ErrorPanel
+              error={failure.error}
+              currentModelId={setup.modelId}
+              busy={busy !== null}
+              onRetry={() => retry(failure.action)}
+              onSwitchModel={(modelId) => void switchModel(modelId)}
             />
-            <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mt: 1.5 }}>
-              <Typography variant="caption" color="text.secondary">
-                {answer.length > MAX_ANSWER_CHARS * 0.9 ? `${answer.length}/${MAX_ANSWER_CHARS}` : "Ctrl + Enter to send"}
-              </Typography>
-              <Button variant="contained" endIcon={<SendRounded />} disabled={!answer.trim() || busy !== null} onClick={() => void submitAnswer()}>
-                Submit answer
-              </Button>
-            </Stack>
-          </CardContent>
-        </Card>
-      )}
+          )}
 
-      {canCoach && !busy && (
-        <Card variant="outlined" sx={{ borderColor: "secondary.main" }}>
-          <CardContent>
-            <Typography variant="subtitle2" sx={{ mb: 1 }}>
-              Ask the coach about this feedback
-            </Typography>
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ alignItems: { sm: "flex-start" } }}>
+          {waitingForAnswer && busy !== "answer" && (
+            <Box>
+              <Speaker color="text.primary">
+                {last?.previousAttempts.length ? `You · Attempt ${last.previousAttempts.length + 1}` : "You"}
+              </Speaker>
               <TextField
-                size="small"
                 multiline
-                maxRows={6}
-                value={coachDraft}
-                disabled={coachQuestionsLeft <= 0}
-                onChange={(event) => setCoachDraft(event.target.value.slice(0, MAX_COACH_MESSAGE_CHARS))}
+                minRows={6}
+                maxRows={18}
+                value={answer}
+                onChange={(event) => setAnswer(event.target.value.slice(0, MAX_ANSWER_CHARS))}
                 onKeyDown={(event) => {
-                  if (event.key === "Enter" && !event.shiftKey) {
-                    event.preventDefault();
-                    void askCoach();
-                  }
+                  if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) void submitAnswer();
                 }}
                 placeholder={
-                  coachQuestionsLeft > 0
-                    ? "e.g. What would a strong answer sound like?"
-                    : "You've used all your coach questions for this one"
+                  last?.previousAttempts.length
+                    ? "Try again, using the feedback. Your best attempt counts in the report."
+                    : "Answer as you would out loud. Specific examples and results make the strongest answers."
                 }
-                slotProps={{ htmlInput: { "aria-label": "Message to the coach" } }}
+                autoFocus
+                slotProps={{
+                  htmlInput: { "aria-label": "Your answer" },
+                  input: { sx: { fontSize: "1.0625rem", lineHeight: 1.7 } },
+                }}
               />
-              <Button
-                variant="outlined"
-                color="secondary"
-                endIcon={<SendRounded />}
-                disabled={!coachDraft.trim() || coachQuestionsLeft <= 0}
-                onClick={() => void askCoach()}
-                sx={{ flexShrink: 0 }}
-              >
-                Ask
-              </Button>
-            </Stack>
-            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
-              {coachQuestionsLeft} of {MAX_COACH_MESSAGES} questions left. The interviewer doesn't see this chat, and it isn't scored.
-            </Typography>
-          </CardContent>
-        </Card>
-      )}
+              <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mt: 2, gap: 2 }}>
+                {answer.length > MAX_ANSWER_CHARS * 0.9 ? (
+                  <Typography variant="caption" color="text.secondary">
+                    {answer.length}/{MAX_ANSWER_CHARS}
+                  </Typography>
+                ) : (
+                  // Phones have no shortcut keys, so the hint only shows where a keyboard is likely.
+                  <Typography variant="caption" color="text.secondary" sx={{ visibility: { xs: "hidden", sm: "visible" } }}>
+                    {SEND_KEYS} to submit
+                  </Typography>
+                )}
+                <Button
+                  variant="contained"
+                  size="large"
+                  disabled={!answer.trim() || busy !== null}
+                  onClick={() => void submitAnswer()}
+                >
+                  Submit answer
+                </Button>
+              </Stack>
+            </Box>
+          )}
 
-      {!busy && !failure && !waitingForAnswer && last?.answer && (
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ justifyContent: "center", alignItems: "center" }}>
-          {feedbackMissing && (
-            <Button onClick={() => void retryFeedback()}>Get feedback on this answer</Button>
-          )}
-          {coach && retriesLeft > 0 && (
-            <Button variant="outlined" size="large" startIcon={<ReplayRounded />} onClick={() => void answerAgain()}>
-              Try answering again ({retriesLeft} left)
-            </Button>
-          )}
-          {allAnswered ? (
-            <Button variant="contained" size="large" onClick={end}>
-              Finish and see my report
-            </Button>
-          ) : (
-            coach && (
-              <Button variant="contained" size="large" onClick={() => void askQuestion()}>
-                Next question
-              </Button>
-            )
+          {!coach && interview.status === "in_progress" && (
+            <Typography variant="body2" color="text.secondary">
+              Mock mode: feedback on each answer is saved for your report.
+            </Typography>
           )}
         </Stack>
-      )}
-
-      {!coach && interview.status === "in_progress" && (
-        <Alert severity="info" variant="outlined">
-          Mock mode: feedback on each answer is saved for your report.
-        </Alert>
-      )}
-
-      <div ref={bottom} />
+        <div ref={bottom} />
+      </Paper>
 
       <Dialog open={confirmEnd} onClose={() => setConfirmEnd(false)}>
         <DialogTitle>End the interview now?</DialogTitle>
@@ -439,6 +668,6 @@ export default function InterviewRoom({ interview }: { interview: InterviewView 
           </Button>
         </DialogActions>
       </Dialog>
-    </Stack>
+    </Box>
   );
 }

@@ -13,14 +13,16 @@ export default function SetupPage() {
 
   return (
     <Box sx={{ maxWidth: 960, mx: "auto" }}>
-      <Typography variant="h4" component="h1" sx={{ mb: 1 }}>
+      <Typography variant="h3" component="h1" sx={{ mb: 1, fontSize: { xs: "1.875rem", md: "2.5rem" } }}>
         New practice interview
       </Typography>
-      <Typography color="text.secondary" sx={{ mb: 4 }}>
-        Tell us about you and the role. It takes about a minute.
-      </Typography>
+      {step === 0 && (
+        <Typography color="text.secondary" sx={{ mb: 1 }}>
+          Tell us about you and the role. It takes about a minute.
+        </Typography>
+      )}
 
-      <Stepper activeStep={step} alternativeLabel sx={{ mb: 4 }}>
+      <Stepper activeStep={step} alternativeLabel sx={{ mt: 3, mb: { xs: 3, md: 5 } }}>
         {STEPS.map((label) => (
           <Step key={label}>
             <StepLabel>{label}</StepLabel>

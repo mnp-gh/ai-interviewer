@@ -124,14 +124,14 @@ export default function MaterialsStep({ draft, update }: Props) {
                 sx={{
                   border: 2,
                   borderStyle: "dashed",
-                  borderColor: dragging ? "primary.main" : "divider",
+                  borderColor: dragging ? "text.primary" : "divider",
                   bgcolor: dragging ? "action.hover" : "transparent",
                   borderRadius: 2,
                   p: 4,
                   textAlign: "center",
                   cursor: "pointer",
                   transition: "border-color 120ms, background-color 120ms",
-                  "&:hover, &:focus-visible": { borderColor: "primary.main", outline: "none" },
+                  "&:hover, &:focus-visible": { borderColor: "text.primary", bgcolor: "action.hover", outline: "none" },
                 }}
               >
                 {extract.isPending ? (
@@ -149,7 +149,7 @@ export default function MaterialsStep({ draft, update }: Props) {
                   </Stack>
                 ) : (
                   <Stack spacing={0.5} sx={{ alignItems: "center" }}>
-                    <UploadFileRounded color="primary" fontSize="large" />
+                    <UploadFileRounded fontSize="large" />
                     <Typography sx={{ fontWeight: 600 }}>Drop your resume here, or click to choose</Typography>
                     <Typography variant="body2" color="text.secondary">
                       PDF up to 4 MB. We keep the text and discard the file.
@@ -235,7 +235,7 @@ export default function MaterialsStep({ draft, update }: Props) {
 
       <Stack direction="row" spacing={2} sx={{ justifyContent: "flex-end" }}>
         {unchanged && draft.profile && (
-          <Button onClick={() => update({ step: 1 })}>Back to review</Button>
+          <Button color="inherit" onClick={() => update({ step: 1 })}>Back to review</Button>
         )}
         <Button
           variant="contained"

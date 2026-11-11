@@ -36,7 +36,8 @@ describe("InterviewRoom", () => {
 
     renderRoom(interview());
 
-    expect(await screen.findByText(question)).toBeTruthy();
+    // The question shows in the script and, shortened or not, in the list of questions.
+    expect((await screen.findAllByText(question)).length).toBeGreaterThan(0);
     await userEvent.type(screen.getByLabelText("Your answer"), "I built a billing API.");
     await userEvent.click(screen.getByRole("button", { name: /submit answer/i }));
 
@@ -83,7 +84,7 @@ describe("InterviewRoom", () => {
     await userEvent.type(await screen.findByLabelText("Your answer"), "An answer.");
     await userEvent.click(screen.getByRole("button", { name: /submit answer/i }));
 
-    expect(await screen.findByText(secondQuestion)).toBeTruthy();
+    expect((await screen.findAllByText(secondQuestion)).length).toBeGreaterThan(0);
     await waitFor(() => expect(questionsAsked).toBe(2));
     expect(screen.queryByRole("button", { name: /try answering again/i })).toBeNull();
     expect(screen.queryByText(/ask the coach/i)).toBeNull();

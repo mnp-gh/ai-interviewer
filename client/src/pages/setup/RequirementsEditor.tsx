@@ -8,7 +8,7 @@ export default function RequirementsEditor({ requirements, onChange }: Props) {
   const set = (changes: Partial<RoleRequirements>) => onChange({ ...requirements, ...changes });
 
   return (
-    <Card>
+    <Card sx={{ height: "100%" }}>
       <CardContent>
         <Stack spacing={2.5}>
           <Box>
@@ -18,6 +18,7 @@ export default function RequirementsEditor({ requirements, onChange }: Props) {
             </Typography>
           </Box>
           <TextField
+            size="small"
             label="Job title"
             required
             value={requirements.title}
@@ -26,8 +27,18 @@ export default function RequirementsEditor({ requirements, onChange }: Props) {
             helperText={requirements.title.trim() ? undefined : "Add the job title"}
           />
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField label="Company" value={requirements.company ?? ""} onChange={(e) => set({ company: e.target.value })} />
-            <TextField label="Seniority" value={requirements.seniority ?? ""} onChange={(e) => set({ seniority: e.target.value })} />
+            <TextField
+              size="small"
+              label="Company"
+              value={requirements.company ?? ""}
+              onChange={(e) => set({ company: e.target.value })}
+            />
+            <TextField
+              size="small"
+              label="Seniority"
+              value={requirements.seniority ?? ""}
+              onChange={(e) => set({ seniority: e.target.value })}
+            />
           </Stack>
           <ChipsField label="Must-have" values={requirements.mustHave} onChange={(mustHave) => set({ mustHave })} />
           <ChipsField label="Nice-to-have" values={requirements.niceToHave} onChange={(niceToHave) => set({ niceToHave })} />
