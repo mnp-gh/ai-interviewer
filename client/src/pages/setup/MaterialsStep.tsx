@@ -8,6 +8,11 @@ import {
   CardContent,
   CircularProgress,
   Collapse,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   Link,
   Stack,
   Tab,
@@ -23,6 +28,7 @@ import { useModels } from "../../api/queries";
 import { MAX_PDF_BYTES, type CandidateProfile, type Match, type RoleRequirements } from "../../api/types";
 import ErrorPanel from "../../components/ErrorPanel";
 import type { Draft } from "./draft";
+import { SAMPLE_JOB_DESCRIPTION, SAMPLE_RESUME } from "./sample";
 
 type Props = { draft: Draft; update: (changes: Partial<Draft>) => void };
 
@@ -31,6 +37,7 @@ export default function MaterialsStep({ draft, update }: Props) {
   const [dragging, setDragging] = useState(false);
   const [showText, setShowText] = useState(false);
   const [fileError, setFileError] = useState<string | null>(null);
+  const [confirmSample, setConfirmSample] = useState(false);
 
   const models = useModels();
   const defaultModelId = models.data?.find((model) => model.isDefault)?.id ?? models.data?.[0]?.id ?? "groq:openai/gpt-oss-120b";
@@ -81,6 +88,17 @@ export default function MaterialsStep({ draft, update }: Props) {
     extract.mutate(new File([file], file.name, { type: "application/pdf" }));
   };
 
+  const fillSample = () => {
+    setConfirmSample(false);
+    update({ resumeSource: "paste", resumeText: SAMPLE_RESUME, resumeFileName: null, jobDescription: SAMPLE_JOB_DESCRIPTION });
+  };
+
+  // Only ask first when there is something of the candidate's to lose.
+  const trySample = () => {
+    if (draft.resumeText.trim() || draft.jobDescription.trim()) setConfirmSample(true);
+    else fillSample();
+  };
+
   const onDrop = (event: DragEvent) => {
     event.preventDefault();
     setDragging(false);
@@ -95,9 +113,15 @@ export default function MaterialsStep({ draft, update }: Props) {
     <Stack spacing={3}>
       <Card>
         <CardContent>
-          <Typography variant="h6" gutterBottom>
-            Your resume
-          </Typography>
+          <Stack direction="row" spacing={2} sx={{ justifyContent: "space-between", alignItems: "baseline", mb: 1 }}>
+            <Typography variant="h6">Your resume</Typography>
+            <Typography variant="body2" color="text.secondary">
+              No resume handy?{" "}
+              <Link component="button" type="button" onClick={trySample} sx={{ verticalAlign: "baseline" }}>
+                Try a sample
+              </Link>
+            </Typography>
+          </Stack>
           <Tabs
             value={draft.resumeSource}
             onChange={(_event, value: Draft["resumeSource"]) => update({ resumeSource: value })}
@@ -232,6 +256,21 @@ export default function MaterialsStep({ draft, update }: Props) {
           }}
         />
       )}
+
+      <Dialog open={confirmSample} onClose={() => setConfirmSample(false)}>
+        <DialogTitle>Replace with the sample?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            The resume and job description you've added will be replaced with a made-up example.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmSample(false)}>Cancel</Button>
+          <Button variant="contained" onClick={fillSample}>
+            Use the sample
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Stack direction="row" spacing={2} sx={{ justifyContent: "flex-end" }}>
         {unchanged && draft.profile && (
