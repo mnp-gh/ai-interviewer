@@ -1,12 +1,15 @@
 import type { ChatMessage } from "../ai/client";
-import type { CandidateProfile, Difficulty, InterviewType, Match, RoleBriefing, RoleRequirements, Setup } from "./schemas";
+import { describeDelivery } from "./delivery";
+import type { CandidateProfile, Delivery, Difficulty, InterviewType, Match, RoleBriefing, RoleRequirements, Setup } from "./schemas";
 
 /** A turn as the prompts see it: only fields that exist so far. */
 export type PromptTurn = {
   question: string;
   answer?: string | null;
   feedback?: string | null;
-  previousAttempts?: { answer: string; feedback: string | null }[];
+  /** Set when the attempt was spoken. */
+  delivery?: Delivery | null;
+  previousAttempts?: { answer: string; feedback: string | null; delivery?: Delivery | null }[];
 };
 
 export type PromptCoachMessage = { role: "candidate" | "coach"; content: string };
@@ -32,6 +35,14 @@ const json = (value: unknown) => JSON.stringify(value);
 
 /** Earlier answers in a question prompt are cut to this; the latest stays whole for follow-ups. */
 const EARLIER_ANSWER_CHARS = 300;
+/** A spoken answer's uncorrected transcription in the report prompt is cut to this. */
+const REPORT_TRANSCRIPTION_CHARS = 600;
+
+/** Comfortable conversational pace, for judging delivery. */
+const PACE_GUIDANCE = "A comfortable pace is about 130-160 words a minute.";
+/** The models only see words and timings, never audio. */
+const CONFIDENCE_GUIDANCE =
+  "Judge confidence only from the words and pauses (hedging, false starts, long silences, trailing off): you cannot hear tone of voice, so never claim to.";
 
 const shorten = (text: string, max: number) => (text.length > max ? `${text.slice(0, max).trimEnd()}…` : text);
 const joined = (items: string[]) => (items.length ? items.join("; ") : "none listed");
@@ -158,6 +169,7 @@ export function questionMessages(setup: Setup, turns: PromptTurn[]): ChatMessage
 
 export function feedbackMessages(setup: Setup, current: PromptTurn): ChatMessage[] {
   const earlier = current.previousAttempts ?? [];
+  const spoken = current.delivery;
   const messages: ChatMessage[] = [
     {
       role: "system",
@@ -168,7 +180,15 @@ export function feedbackMessages(setup: Setup, current: PromptTurn): ChatMessage
           ? `This is attempt ${earlier.length + 1} at this question. Say briefly whether it improved on the earlier attempt and how.`
           : null,
         "Be specific to what they actually said. Be honest but encouraging.",
-        "Reply in at most 60 words of plain text, no markdown, no headings.",
+        ...(spoken
+          ? [
+              "This answer was spoken. Judge its content from the answer as the candidate corrected it.",
+              "Then add a separate final line starting \"Delivery:\" with one or two sentences on how it was said (pace, filler words, pauses, confidence), using only the measurements and the word-for-word transcription you are given.",
+              PACE_GUIDANCE,
+              CONFIDENCE_GUIDANCE,
+              "Reply in at most 90 words of plain text, no markdown, no headings.",
+            ]
+          : ["Reply in at most 60 words of plain text, no markdown, no headings."]),
         "",
         interviewBrief(setup, "answers"),
       ]
@@ -182,7 +202,10 @@ export function feedbackMessages(setup: Setup, current: PromptTurn): ChatMessage
     ]),
     { role: "user", content: current.answer ?? "" },
   ];
-  return withUserMessage(messages, "(Give me feedback on that answer.)");
+  const delivery = spoken
+    ? `\n\n(How I said it: ${describeDelivery(spoken)}. Word-for-word transcription before my corrections: "${spoken.transcription}")`
+    : "";
+  return withUserMessage(messages, `(Give me feedback on that answer.)${delivery}`);
 }
 
 /** The coach answering the candidate's questions about one turn. Never shown to the interviewer. */
@@ -218,12 +241,23 @@ export function coachChatMessages(
   return withUserMessage(messages, message);
 }
 
+/** Whether any attempt in these turns was spoken, so the report should cover delivery. */
+export const hasSpokenAttempts = (turns: PromptTurn[]) =>
+  turns.some((turn) => turn.delivery || turn.previousAttempts?.some((attempt) => attempt.delivery));
+
 export function reportMessages(setup: Setup, turns: PromptTurn[]): ChatMessage[] {
+  const spoken = hasSpokenAttempts(turns);
   const transcript = turns.map((turn, index) => ({
     index,
     question: turn.question,
     answer: turn.answer,
     ...(turn.previousAttempts?.length ? { earlierAttempts: turn.previousAttempts.map((attempt) => attempt.answer) } : {}),
+    ...(turn.delivery
+      ? {
+          delivery: describeDelivery(turn.delivery),
+          wordForWord: shorten(turn.delivery.transcription, REPORT_TRANSCRIPTION_CHARS),
+        }
+      : {}),
   }));
   return [
     {
@@ -246,8 +280,27 @@ export function reportMessages(setup: Setup, turns: PromptTurn[]): ChatMessage[]
               strongAnswer: "1-3 sentences on what a strong answer would have included",
             },
           ],
+          ...(spoken
+            ? {
+                delivery: {
+                  score: "number 0-10 for how the spoken answers were said",
+                  summary: "string, 1-3 sentences addressed to the candidate as 'you'",
+                  strengths: ["0-3 short strings"],
+                  improvements: [{ area: "short label", suggestion: "one concrete sentence" }],
+                },
+              }
+            : {}),
         }),
         "Include exactly one entry in `questions` for every question in the transcript, in order. Give 1-4 improvements.",
+        ...(spoken
+          ? [
+              "Some answers were spoken: they have `delivery` measurements and `wordForWord`, the transcription before the candidate corrected it.",
+              "Score content (overallScore, question scores) from the answers as corrected, never from how they were said.",
+              "Score delivery separately in `delivery`, from the spoken answers only: pace, filler words, pauses and confidence. Give 0-3 improvements.",
+              PACE_GUIDANCE,
+              CONFIDENCE_GUIDANCE,
+            ]
+          : []),
         "",
         interviewBrief(setup, "answers"),
       ].join("\n"),

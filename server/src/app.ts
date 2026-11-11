@@ -3,13 +3,21 @@ import Fastify, { type FastifyInstance } from "fastify";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { createAccountService } from "./account/service";
 import { createAiClient, type AiClient } from "./ai/client";
-import { createModelRegistry, type ModelRegistry } from "./ai/models";
+import {
+  createModelRegistry,
+  createSpeechRegistry,
+  createVoiceRegistry,
+  INTERVIEWER_VOICES,
+  type ModelConfig,
+  type ModelRegistry,
+} from "./ai/models";
+import { createSpeechClient, type SpeechClient } from "./ai/speech";
 import { connectToDatabase } from "./db/mongo-client";
 import { createTurnstileVerifier, type VerifyHuman } from "./http/botcheck";
 import { requireCandidate } from "./http/candidate";
 import { errorHandler } from "./http/errors";
 import { apiSecurityHeaders } from "./http/security";
-import type { ModelOption } from "./interview/schemas";
+import type { ModelOption, SpeechModelsResponse } from "./interview/schemas";
 import { createInterviewService } from "./interview/service";
 import { accountRoutes } from "./routes/account";
 import { adminRoutes } from "./routes/admin";
@@ -21,6 +29,10 @@ import { budgetFromEnv, type Budget } from "./usage/meter";
 export type AppOptions = {
   registry?: ModelRegistry;
   ai?: AiClient;
+  speechRegistry?: ModelRegistry;
+  voiceRegistry?: ModelRegistry;
+  /** Transcribes spoken answers (and voices questions); null disables them. */
+  speech?: SpeechClient | null;
   /** Web search for role briefings; null disables research. */
   search?: SearchClient | null;
   budget?: Budget;
@@ -38,7 +50,11 @@ export function createApp(options: AppOptions = {}): FastifyInstance {
   const verifyHuman = options.verifyHuman === undefined ? createTurnstileVerifier() : options.verifyHuman;
   const search = options.search === undefined ? createTavilyClient() : options.search;
   const connect = options.connect ?? connectToDatabase;
-  const service = createInterviewService({ ai, registry, now: options.now });
+  const speechRegistry = options.speechRegistry ?? createSpeechRegistry();
+  const voiceRegistry = options.voiceRegistry ?? createVoiceRegistry();
+  const speech = options.speech === undefined ? createSpeechClient(speechRegistry) : options.speech;
+  const service = createInterviewService({ ai, registry, speech, speechRegistry, voiceRegistry, limits: budget, now: options.now });
+  const interviewerVoices = speech && voiceRegistry.defaultModel() && budget.voiceQuestionsGlobal > 0 ? INTERVIEWER_VOICES.map(({ id, label }) => ({ id, label })) : [];
   const account = createAccountService({ now: options.now });
 
   // No CORS: the site and the API share one origin, so other sites' pages can't call the API.
@@ -62,10 +78,10 @@ export function createApp(options: AppOptions = {}): FastifyInstance {
         })
       );
       api.get("/health", async () => ({ ok: true }));
-      api.get("/models", async () => {
-        const defaultId = registry.defaultModel()?.id;
-        const models: ModelOption[] = registry.available().map((model) => {
-          const provider = registry.provider(model.provider);
+      const modelOptions = (models: ModelRegistry): ModelOption[] => {
+        const defaultId = models.defaultModel()?.id;
+        return models.available().map((model: ModelConfig) => {
+          const provider = models.provider(model.provider);
           return {
             id: model.id,
             label: model.label,
@@ -75,8 +91,13 @@ export function createApp(options: AppOptions = {}): FastifyInstance {
             isDefault: model.id === defaultId,
           };
         });
-        return { models };
-      });
+      };
+      api.get("/models", async () => ({ models: modelOptions(registry) }));
+      api.get("/speech-models", async (): Promise<SpeechModelsResponse> => ({
+        models: speech ? modelOptions(speechRegistry) : [],
+        maxRecordingSeconds: budget.recordingSeconds,
+        interviewerVoices,
+      }));
 
       // Everything below needs the database.
       api.register(async (db) => {

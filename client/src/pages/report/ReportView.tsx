@@ -36,6 +36,9 @@ export default function ReportView({ interview }: { interview: InterviewView }) 
   const [confirmDelete, setConfirmDelete] = useState(false);
   const modelLabel = (id: string) => models.data?.find((model) => model.id === id)?.label ?? id.split(":").slice(1).join(":");
 
+  const answeredTurns = turns.filter((turn) => turn.answer);
+  const spokenCount = answeredTurns.filter((turn) => turn.delivery || turn.previousAttempts.some((attempt) => attempt.delivery)).length;
+
   // The weakest answer opens by default, so the report starts on what most needs rehearsing.
   const weakest = report?.questions.length
     ? report.questions.reduce((low, entry) => (entry.score < low.score ? entry : low)).index
@@ -67,6 +70,7 @@ export default function ReportView({ interview }: { interview: InterviewView }) 
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5 }}>
             {INTERVIEW_TYPE_LABELS[setup.interviewType]} · {DIFFICULTY_LABELS[setup.difficulty]} · {MODE_LABELS[setup.mode].label} mode
+            {setup.voice === "spoken" && " · Spoken"}
             {report && ` · Assessed by ${modelLabel(report.modelId)}`} · {formatDate(interview.completedAt ?? interview.createdAt)}
           </Typography>
         </Box>
@@ -153,6 +157,51 @@ export default function ReportView({ interview }: { interview: InterviewView }) 
               </Stack>
             </Box>
           </Box>
+
+          {report.delivery && (
+            <Paper component="section" aria-labelledby="delivery-heading" variant="outlined" sx={{ borderColor: "script.rule", p: { xs: 2.5, sm: 4 } }}>
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={{ xs: 1.5, sm: 4 }} sx={{ alignItems: { sm: "baseline" }, mb: 2.5 }}>
+                <Typography id="delivery-heading" variant="h6" component="h2">
+                  How you said it
+                </Typography>
+                <Box>
+                  <ScoreChip score={report.delivery.score} />
+                </Box>
+                <Typography variant="body2" color="text.secondary">
+                  Delivery, scored apart from content · based on {spokenCount} of {answeredTurns.length} answers, the ones you spoke
+                </Typography>
+              </Stack>
+              <Typography sx={{ lineHeight: 1.65, maxWidth: "42em", mb: report.delivery.strengths.length || report.delivery.improvements.length ? 3 : 0 }}>
+                {report.delivery.summary}
+              </Typography>
+              <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "minmax(0, 5fr) minmax(0, 7fr)" }, gap: { xs: 3, md: 6 } }}>
+                {report.delivery.strengths.length > 0 && (
+                  <Stack component="ul" spacing={1.25} sx={{ listStyle: "none", p: 0, m: 0 }}>
+                    {report.delivery.strengths.map((strength) => (
+                      <Typography component="li" key={strength} sx={{ lineHeight: 1.65 }}>
+                        <Box component="mark" sx={{ bgcolor: "script.highlight", color: "script.highlightInk", px: 0.5, boxDecorationBreak: "clone", WebkitBoxDecorationBreak: "clone" }}>
+                          {strength}
+                        </Box>
+                      </Typography>
+                    ))}
+                  </Stack>
+                )}
+                {report.delivery.improvements.length > 0 && (
+                  <Stack spacing={2} sx={{ borderLeft: "1px dashed", borderColor: "script.pencil", pl: { xs: 2.5, md: 4 }, gridColumn: report.delivery.strengths.length ? undefined : "1 / -1" }}>
+                    {report.delivery.improvements.map((item) => (
+                      <Box key={item.area}>
+                        <Typography sx={{ fontWeight: 700 }}>{item.area}</Typography>
+                        <Typography sx={{ color: "script.pencil", lineHeight: 1.65 }}>{item.suggestion}</Typography>
+                      </Box>
+                    ))}
+                  </Stack>
+                )}
+              </Box>
+              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 3 }}>
+                Confidence is judged from your words and pauses, not your tone of voice.
+              </Typography>
+            </Paper>
+          )}
         </>
       )}
 
@@ -161,7 +210,7 @@ export default function ReportView({ interview }: { interview: InterviewView }) 
           Question by question
         </Typography>
         <Box sx={{ borderTop: 1, borderColor: "script.rule" }}>
-          {turns.filter((turn) => turn.answer).map((turn) => {
+          {answeredTurns.map((turn) => {
             const assessment = report?.questions.find((entry) => entry.index === turn.index);
             return (
               <Accordion
@@ -204,7 +253,7 @@ export default function ReportView({ interview }: { interview: InterviewView }) 
                         </Box>
                       </Box>
                     )}
-                    <TurnTranscript turn={turn} showCoaching hideQuestion />
+                    <TurnTranscript turn={turn} interviewId={interview.id} showCoaching hideQuestion />
                   </Stack>
                 </AccordionDetails>
               </Accordion>

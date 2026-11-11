@@ -124,6 +124,51 @@ export const MODELS: ModelConfig[] = [
 /** Default for new interviews, and the fixed model used to parse resumes and job descriptions. */
 export const DEFAULT_MODEL_ID = "groq:openai/gpt-oss-120b";
 
+/**
+ * The speech models that can transcribe spoken answers. They must return word timestamps, which give
+ * pace and pauses. Groq's free tier: 7,200 audio seconds an hour and 28,800 a day, shared by both.
+ */
+export const SPEECH_MODELS: ModelConfig[] = [
+  {
+    id: "groq:whisper-large-v3",
+    provider: "groq",
+    model: "whisper-large-v3",
+    label: "Whisper Large v3",
+    note: "Most accurate",
+  },
+  {
+    id: "groq:whisper-large-v3-turbo",
+    provider: "groq",
+    model: "whisper-large-v3-turbo",
+    label: "Whisper Turbo",
+    note: "Faster",
+  },
+];
+
+export const DEFAULT_SPEECH_MODEL_ID = "groq:whisper-large-v3";
+
+/**
+ * The enhanced voice that reads questions aloud in spoken interviews (the browser's own voice is the
+ * free fallback). Groq's free tier: 100 requests and a few thousand tokens (about one per character) a day.
+ * The model's terms must be accepted once in the Groq console.
+ */
+export const INTERVIEWER_VOICE_MODEL: ModelConfig = {
+  id: "groq:canopylabs/orpheus-v1-english",
+  provider: "groq",
+  model: "canopylabs/orpheus-v1-english",
+  label: "Orpheus",
+  note: "Natural voices, a few a day",
+};
+
+export const INTERVIEWER_VOICES = [
+  { id: "hannah", label: "Hannah" },
+  { id: "troy", label: "Troy" },
+  { id: "autumn", label: "Autumn" },
+  { id: "austin", label: "Austin" },
+  { id: "diana", label: "Diana" },
+  { id: "daniel", label: "Daniel" },
+] as const;
+
 export type ModelRegistry = {
   available(): ModelConfig[];
   /** Returns the model if it exists and its provider is configured. */
@@ -134,14 +179,23 @@ export type ModelRegistry = {
   provider(id: ProviderId): Provider;
 };
 
+/** The enhanced interviewer voice, when its provider is configured. */
+export const createVoiceRegistry = (env: NodeJS.ProcessEnv = process.env) =>
+  createModelRegistry(env, [INTERVIEWER_VOICE_MODEL], INTERVIEWER_VOICE_MODEL.id);
+
+/** The speech models whose provider is configured. */
+export const createSpeechRegistry = (env: NodeJS.ProcessEnv = process.env) =>
+  createModelRegistry(env, SPEECH_MODELS, DEFAULT_SPEECH_MODEL_ID);
+
 export function createModelRegistry(
   env: NodeJS.ProcessEnv = process.env,
-  models: ModelConfig[] = MODELS
+  models: ModelConfig[] = MODELS,
+  defaultId = DEFAULT_MODEL_ID
 ): ModelRegistry {
   const isConfigured = (model: ModelConfig) => Boolean(env[PROVIDERS[model.provider].apiKeyEnv]);
   const available = () => models.filter(isConfigured);
   const find = (id: string) => available().find((model) => model.id === id);
-  const defaultModel = () => find(DEFAULT_MODEL_ID) ?? available()[0];
+  const defaultModel = () => find(defaultId) ?? available()[0];
 
   return {
     available,

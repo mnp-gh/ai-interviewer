@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { AccountService } from "../account/service";
 import type { ModelRegistry } from "../ai/models";
 import { requireAdmin } from "../http/admin";
+import { deleteRecordingsBefore, recordingStorage } from "../interview/recordings";
 import type { UsageReport } from "../interview/schemas";
 import { usageOn, type Budget } from "../usage/meter";
 
@@ -29,6 +30,7 @@ export const adminRoutes: FastifyPluginAsync<AdminRoutesOptions> = async (
     const { day = today } = z.object({ day: z.enum([today, yesterday]).optional() }).parse(req.query);
 
     const usage = await usageOn(day);
+    const stored = await recordingStorage();
     const saved = await account.savedAmong(usage.candidates.map((candidate) => candidate.id));
     const remaining = (used: number, limit: number) => Math.max(0, limit - used);
 
@@ -38,6 +40,22 @@ export const adminRoutes: FastifyPluginAsync<AdminRoutesOptions> = async (
       yesterday,
       tokens: { used: usage.tokens, limit: budget.tokensGlobal, remaining: remaining(usage.tokens, budget.tokensGlobal) },
       searches: { used: usage.searches, limit: budget.searchesGlobal, remaining: remaining(usage.searches, budget.searchesGlobal) },
+      audioSeconds: {
+        used: usage.audioSeconds,
+        limit: budget.audioSecondsGlobal,
+        remaining: remaining(usage.audioSeconds, budget.audioSecondsGlobal),
+      },
+      interviewerVoice: {
+        used: usage.voiceQuestions,
+        limit: budget.voiceQuestionsGlobal,
+        remaining: remaining(usage.voiceQuestions, budget.voiceQuestionsGlobal),
+      },
+      recordings: {
+        count: stored.count,
+        bytes: stored.bytes,
+        limitBytes: budget.recordingStorageBytes,
+        oldest: stored.oldest?.toISOString() ?? null,
+      },
       interviewsStarted: usage.candidates.reduce((sum, candidate) => sum + candidate.interviews, 0),
       models: registry.available().map((model) => {
         const used = usage.models[model.id] ?? 0;
@@ -61,5 +79,12 @@ export const adminRoutes: FastifyPluginAsync<AdminRoutesOptions> = async (
         searchesPerIp: budget.searchesPerIp,
       },
     };
+  });
+
+  /** Deletes recordings older than the given number of days; their transcripts and delivery stay. */
+  app.delete("/recordings", async (req) => {
+    const { olderThanDays } = z.object({ olderThanDays: z.coerce.number().int().min(0).max(3650) }).parse(req.query);
+    const deleted = await deleteRecordingsBefore(new Date(now().getTime() - olderThanDays * DAY_MS));
+    return { deleted };
   });
 };

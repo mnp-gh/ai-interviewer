@@ -24,6 +24,24 @@ export type Budget = {
   searchesPerIp: number;
   /** Passkey and sign-in attempts per IP per minute: each stores a challenge. */
   accountActionsPerMinute: number;
+  /** Daily seconds of spoken answers transcribed, per candidate and per IP. */
+  audioSecondsPerCandidate: number;
+  audioSecondsPerIp: number;
+  /** Daily seconds transcribed across all users; keep it under Groq's free 28,800 a day. */
+  audioSecondsGlobal: number;
+  /** The longest one spoken attempt may be. */
+  recordingSeconds: number;
+  /** Stored recordings stop being kept past this, so they can't fill the free database. */
+  recordingStorageBytes: number;
+  /** Questions read by the enhanced interviewer voice a day, per candidate and per IP; past them, the browser's voice reads. */
+  voiceQuestionsPerCandidate: number;
+  voiceQuestionsPerIp: number;
+  /** Across everyone: keep under Groq's free 100 requests a day for Orpheus. */
+  voiceQuestionsGlobal: number;
+  /** Characters read across everyone; Orpheus counts about a token a character against a small daily quota. */
+  voiceCharactersGlobal: number;
+  /** Groq allows Orpheus 10 requests a minute, for the whole app. */
+  voiceQuestionsPerMinute: number;
 };
 
 export const DEFAULT_BUDGET: Budget = {
@@ -36,6 +54,16 @@ export const DEFAULT_BUDGET: Budget = {
   searchesGlobal: 30,
   searchesPerIp: 9,
   accountActionsPerMinute: 10,
+  audioSecondsPerCandidate: 30 * 60,
+  audioSecondsPerIp: 30 * 60,
+  audioSecondsGlobal: 7 * 60 * 60,
+  recordingSeconds: 120,
+  recordingStorageBytes: 350 * 1024 * 1024,
+  voiceQuestionsPerCandidate: 12,
+  voiceQuestionsPerIp: 12,
+  voiceQuestionsGlobal: 90,
+  voiceCharactersGlobal: 3_400,
+  voiceQuestionsPerMinute: 9,
 };
 
 /** Reads overrides such as DAILY_TOKENS=2000000 from the environment. */
@@ -55,6 +83,16 @@ export function budgetFromEnv(env: NodeJS.ProcessEnv = process.env): Budget {
     searchesGlobal: read("DAILY_SEARCHES", DEFAULT_BUDGET.searchesGlobal),
     searchesPerIp: read("DAILY_SEARCHES_PER_IP", DEFAULT_BUDGET.searchesPerIp),
     accountActionsPerMinute: read("ACCOUNT_ACTIONS_PER_MINUTE", DEFAULT_BUDGET.accountActionsPerMinute),
+    audioSecondsPerCandidate: read("DAILY_AUDIO_SECONDS_PER_CANDIDATE", DEFAULT_BUDGET.audioSecondsPerCandidate),
+    audioSecondsPerIp: read("DAILY_AUDIO_SECONDS_PER_IP", DEFAULT_BUDGET.audioSecondsPerIp),
+    audioSecondsGlobal: read("DAILY_AUDIO_SECONDS", DEFAULT_BUDGET.audioSecondsGlobal),
+    recordingSeconds: read("MAX_RECORDING_SECONDS", DEFAULT_BUDGET.recordingSeconds),
+    recordingStorageBytes: read("RECORDING_STORAGE_MB", DEFAULT_BUDGET.recordingStorageBytes / 1024 / 1024) * 1024 * 1024,
+    voiceQuestionsPerCandidate: read("DAILY_VOICE_QUESTIONS_PER_CANDIDATE", DEFAULT_BUDGET.voiceQuestionsPerCandidate),
+    voiceQuestionsPerIp: read("DAILY_VOICE_QUESTIONS_PER_IP", DEFAULT_BUDGET.voiceQuestionsPerIp),
+    voiceQuestionsGlobal: read("DAILY_VOICE_QUESTIONS", DEFAULT_BUDGET.voiceQuestionsGlobal),
+    voiceCharactersGlobal: read("DAILY_VOICE_CHARACTERS", DEFAULT_BUDGET.voiceCharactersGlobal),
+    voiceQuestionsPerMinute: read("VOICE_QUESTIONS_PER_MINUTE", DEFAULT_BUDGET.voiceQuestionsPerMinute),
   };
 }
 
@@ -152,6 +190,15 @@ export type Meter = {
   searches(amount: number): Promise<void>;
   /** Counts a passkey or sign-in attempt against the per-minute limit. */
   accountAction(): Promise<void>;
+  /**
+   * Right before transcribing a spoken answer: throws when a daily audio budget is used up, and counts
+   * the call against the per-minute AI limit. Its length is known only afterwards, like tokens.
+   */
+  audioCall(): Promise<void>;
+  /** After transcribing: adds the seconds of audio to the daily budgets. */
+  audioSeconds(seconds: number): Promise<void>;
+  /** Counts a question read by the enhanced interviewer voice, or throws when a budget for it is used up. */
+  interviewerVoice(characters: number): Promise<void>;
 };
 
 export function createMeter(budget: Budget, subject: { candidateId: string; ip: string }, now = new Date()): Meter {
@@ -181,6 +228,14 @@ export function createMeter(budget: Budget, subject: { candidateId: string; ip: 
     daily(`tokens:${candidate}`, budget.tokensPerCandidate, dailyLimit("You've reached today's practice limit. Come back tomorrow!")),
     daily(`tokens:${ip}`, budget.tokensPerIp, dailyLimit("Today's practice limit for your network has been reached. Come back tomorrow!")),
     daily("tokens:global", budget.tokensGlobal, atCapacity),
+  ];
+
+  const audioChecks = [
+    daily(`audio:${candidate}`, budget.audioSecondsPerCandidate, dailyLimit("You've used today's time for spoken answers. Type your answers for now, or come back tomorrow.")),
+    daily(`audio:${ip}`, budget.audioSecondsPerIp, dailyLimit("Today's time for spoken answers on your network is used up. Type your answers for now, or come back tomorrow.")),
+    daily("audio:global", budget.audioSecondsGlobal, () =>
+      new HttpError(503, "CAPACITY", "Today's free capacity for spoken answers is used up across everyone. Type your answers for now.")
+    ),
   ];
 
   return {
@@ -215,6 +270,25 @@ export function createMeter(budget: Budget, subject: { candidateId: string; ip: 
         now
       ),
     accountAction: () => charge([perMinute(`account-minute:${ip}`, budget.accountActionsPerMinute)], 1, now),
+    audioCall: async () => {
+      const burst = [perMinute(`ai-minute:${candidate}`), perMinute(`ai-minute:${ip}`)];
+      await ensureRoom([...burst.map((check) => ({ check, amount: 1 })), ...audioChecks.map((check) => ({ check, amount: 1 }))]);
+      await add(burst, 1, now);
+    },
+    audioSeconds: (seconds) => add(audioChecks, seconds, now),
+    interviewerVoice: async (characters) => {
+      const usedUp = () => new HttpError(429, "DAILY_LIMIT", "Today's enhanced interviewer voice is used up. Your browser's voice reads the questions instead.");
+      const questions = [
+        daily(`voice:${candidate}`, budget.voiceQuestionsPerCandidate, usedUp),
+        daily(`voice:${ip}`, budget.voiceQuestionsPerIp, usedUp),
+        daily("voice:global", budget.voiceQuestionsGlobal, usedUp),
+        { ...perMinute("voice-minute:global", budget.voiceQuestionsPerMinute), error: usedUp },
+      ];
+      const characterCheck = daily("voice-characters:global", budget.voiceCharactersGlobal, usedUp);
+      await ensureRoom([...questions.map((check) => ({ check, amount: 1 })), { check: characterCheck, amount: characters }]);
+      await add(questions, 1, now);
+      await add([characterCheck], characters, now);
+    },
   };
 }
 
@@ -223,6 +297,9 @@ export function createMeter(budget: Budget, subject: { candidateId: string; ip: 
 export type UsageCounts = {
   tokens: number;
   searches: number;
+  audioSeconds: number;
+  /** Questions read by the enhanced interviewer voice. */
+  voiceQuestions: number;
   /** Tokens per model id. */
   models: Record<string, number>;
   candidates: { id: string; tokens: number; interviews: number }[];
@@ -235,7 +312,7 @@ export type UsageCounts = {
  */
 export async function usageOn(day: string, top = 50): Promise<UsageCounts> {
   const counters = await CounterModel.find({ window: day }, { key: 1, count: 1 }).lean();
-  const usage: UsageCounts = { tokens: 0, searches: 0, models: {}, candidates: [], networks: [] };
+  const usage: UsageCounts = { tokens: 0, searches: 0, audioSeconds: 0, voiceQuestions: 0, models: {}, candidates: [], networks: [] };
   const candidates = new Map<string, UsageCounts["candidates"][number]>();
   const networks = new Map<string, UsageCounts["networks"][number]>();
   const candidate = (id: string) => candidates.get(id) ?? candidates.set(id, { id, tokens: 0, interviews: 0 }).get(id)!;
@@ -248,6 +325,8 @@ export async function usageOn(day: string, top = 50): Promise<UsageCounts> {
     const id = key.slice(measure.length + (subject ?? "").length + 2);
     if (key === "tokens:global") usage.tokens = count;
     else if (key === "searches:global") usage.searches = count;
+    else if (key === "audio:global") usage.audioSeconds = count;
+    else if (key === "voice:global") usage.voiceQuestions = count;
     else if (subject === "model" && measure === "tokens") usage.models[id] = count;
     else if (subject === "candidate" && (measure === "tokens" || measure === "interviews")) candidate(id)[measure] = count;
     else if (subject === "ip" && (measure === "tokens" || measure === "interviews" || measure === "searches")) network(id)[measure] = count;

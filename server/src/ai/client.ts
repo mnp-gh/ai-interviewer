@@ -26,7 +26,7 @@ export class AiUnavailableError extends Error {
   }
 }
 
-function describeFailure(model: ModelConfig, error: unknown): AiUnavailableError {
+export function describeFailure(model: ModelConfig, error: unknown): AiUnavailableError {
   if (error instanceof AiUnavailableError) return error;
   let reason = "is unavailable right now";
   if (error instanceof APIError && error.status === 429) reason = "has hit its rate limit";
@@ -49,10 +49,10 @@ export function estimateTokens(messages: ChatMessage[], output: string): number 
   return Math.ceil(chars / 4);
 }
 
-export function createAiClient(registry: ModelRegistry, env: NodeJS.ProcessEnv = process.env): AiClient {
+/** One OpenAI-compatible client per provider, created on first use. */
+export function providerClients(registry: ModelRegistry, env: NodeJS.ProcessEnv = process.env) {
   const clients = new Map<ProviderId, OpenAI>();
-
-  const clientFor = (model: ModelConfig) => {
+  return (model: ModelConfig) => {
     let client = clients.get(model.provider);
     if (!client) {
       const provider = registry.provider(model.provider);
@@ -66,6 +66,10 @@ export function createAiClient(registry: ModelRegistry, env: NodeJS.ProcessEnv =
     }
     return client;
   };
+}
+
+export function createAiClient(registry: ModelRegistry, env: NodeJS.ProcessEnv = process.env): AiClient {
+  const clientFor = providerClients(registry, env);
 
   return {
     async *stream(model, messages, onTokens) {

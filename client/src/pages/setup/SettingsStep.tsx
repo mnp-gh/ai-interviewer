@@ -20,23 +20,71 @@ import { useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { botCheckHeaders } from "../../api/botCheck";
 import { api } from "../../api/client";
-import { rememberInterview, useModels } from "../../api/queries";
+import { rememberInterview, useModels, useSpeechModels } from "../../api/queries";
 import {
   DIFFICULTY_LABELS,
   INTERVIEW_TYPE_LABELS,
   MAX_LENGTH,
   MIN_LENGTH,
   MODE_LABELS,
+  VOICE_LABELS,
   type Difficulty,
   type InterviewType,
   type InterviewView,
   type Mode,
   type Setup,
+  type Voice,
 } from "../../api/types";
 import ModelSelect from "../../components/ModelSelect";
+import MicCheck from "../../voice/MicCheck";
 import { cleanProfile, cleanRequirements, pruneBriefing, type Draft } from "./draft";
 
 type Props = { draft: Draft; update: (changes: Partial<Draft>) => void; reset: () => void };
+
+/** A choice between a few options, each a card with a line of explanation. */
+function ChoiceCards<T extends string>({
+  options,
+  value,
+  onChange,
+  disabled = [],
+}: {
+  options: Record<T, { label: string; description: string }>;
+  value: T;
+  onChange: (value: T) => void;
+  disabled?: T[];
+}) {
+  return (
+    <Grid container spacing={2}>
+      {(Object.keys(options) as T[]).map((option) => {
+        const selected = value === option;
+        return (
+          <Grid key={option} size={{ xs: 12, sm: 6 }}>
+            <Card
+              sx={{
+                height: "100%",
+                borderColor: selected ? "text.primary" : "divider",
+                borderWidth: 2,
+                ...(selected && { bgcolor: "script.highlight", color: "script.highlightInk" }),
+              }}
+            >
+              <CardActionArea
+                onClick={() => onChange(option)}
+                aria-pressed={selected}
+                disabled={disabled.includes(option)}
+                sx={{ p: 2, height: "100%", "&.Mui-disabled": { opacity: 0.5 } }}
+              >
+                <Typography sx={{ fontWeight: 800 }}>{options[option].label}</Typography>
+                <Typography variant="body2" sx={{ color: selected ? "inherit" : "text.secondary" }}>
+                  {options[option].description}
+                </Typography>
+              </CardActionArea>
+            </Card>
+          </Grid>
+        );
+      })}
+    </Grid>
+  );
+}
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
@@ -64,6 +112,16 @@ export default function SettingsStep({ draft, update, reset }: Props) {
   // A sensible default is already picked, so the model picker stays out of the way until asked for.
   const [choosingModel, setChoosingModel] = useState(false);
 
+  const speech = useSpeechModels();
+  const speechModels = speech.data?.models ?? [];
+  const speechAvailable = speechModels.length > 0;
+  const voice: Voice = draft.voice === "spoken" && speechAvailable ? "spoken" : "typed";
+  const defaultSpeechModel = speechModels.find((model) => model.isDefault) ?? speechModels[0];
+  const speechModelId = speechModels.some((model) => model.id === draft.speechModelId) ? draft.speechModelId! : defaultSpeechModel?.id;
+  // The microphone is checked each visit: permission can be withdrawn, and a mic unplugged.
+  const [micReady, setMicReady] = useState(false);
+  const minutes = speech.data ? Math.round(speech.data.maxRecordingSeconds / 60) : 2;
+
   const start = useMutation({
     mutationFn: async () => {
       const setup: Setup = {
@@ -78,6 +136,8 @@ export default function SettingsStep({ draft, update, reset }: Props) {
         length: draft.length,
         mode: draft.mode,
         modelId: modelId!,
+        voice,
+        speechModelId: voice === "spoken" ? speechModelId! : null,
       };
       return api.post<{ interview: InterviewView }>("/interviews", setup, await botCheckHeaders());
     },
@@ -139,30 +199,40 @@ export default function SettingsStep({ draft, update, reset }: Props) {
             </Field>
 
             <Field label="Mode">
-              <Grid container spacing={2}>
-                {(Object.keys(MODE_LABELS) as Mode[]).map((mode) => {
-                  const selected = draft.mode === mode;
-                  return (
-                    <Grid key={mode} size={{ xs: 12, sm: 6 }}>
-                      <Card
-                        sx={{
-                          height: "100%",
-                          borderColor: selected ? "text.primary" : "divider",
-                          borderWidth: 2,
-                          ...(selected && { bgcolor: "script.highlight", color: "script.highlightInk" }),
-                        }}
-                      >
-                        <CardActionArea onClick={() => update({ mode })} aria-pressed={selected} sx={{ p: 2, height: "100%" }}>
-                          <Typography sx={{ fontWeight: 800 }}>{MODE_LABELS[mode].label}</Typography>
-                          <Typography variant="body2" sx={{ color: selected ? "inherit" : "text.secondary" }}>
-                            {MODE_LABELS[mode].description}
-                          </Typography>
-                        </CardActionArea>
-                      </Card>
-                    </Grid>
-                  );
-                })}
-              </Grid>
+              <ChoiceCards<Mode> options={MODE_LABELS} value={draft.mode} onChange={(mode) => update({ mode })} />
+            </Field>
+
+            <Field
+              label="Voice"
+              hint={
+                speechAvailable
+                  ? `Fixed for this interview. In a spoken interview you can still type any single answer; spoken answers are up to ${minutes} minutes.`
+                  : "Spoken answers aren't available right now."
+              }
+            >
+              <Stack spacing={2}>
+                <ChoiceCards<Voice>
+                  options={VOICE_LABELS}
+                  value={voice}
+                  onChange={(next) => update({ voice: next })}
+                  disabled={speechAvailable ? [] : ["spoken"]}
+                />
+                {voice === "spoken" && (
+                  <>
+                    <MicCheck onReady={setMicReady} />
+                    {speechModels.length > 1 && (
+                      <Box sx={{ maxWidth: 420 }}>
+                        <ModelSelect
+                          models={speechModels}
+                          value={speechModelId ?? ""}
+                          onChange={(id) => update({ speechModelId: id })}
+                          label="Speech model"
+                        />
+                      </Box>
+                    )}
+                  </>
+                )}
+              </Stack>
             </Field>
 
             <Field label="Interviewer model">
@@ -193,13 +263,18 @@ export default function SettingsStep({ draft, update, reset }: Props) {
       </Card>
 
       {start.error && <Alert severity="error">{start.error.message}</Alert>}
+      {voice === "spoken" && !micReady && (
+        <Typography variant="body2" color="text.secondary" sx={{ textAlign: "right" }}>
+          Check your microphone to start a spoken interview.
+        </Typography>
+      )}
 
       <Stack direction="row" sx={{ justifyContent: "space-between" }}>
         <Button color="inherit" onClick={() => update({ step: 1 })}>Back</Button>
         <Button
           variant="contained"
           size="large"
-          disabled={!modelId || start.isPending}
+          disabled={!modelId || start.isPending || (voice === "spoken" && (!micReady || !speechModelId))}
           onClick={() => start.mutate()}
           startIcon={start.isPending ? <CircularProgress size={18} color="inherit" /> : undefined}
         >

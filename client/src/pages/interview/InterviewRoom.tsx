@@ -3,6 +3,8 @@ import ExpandMoreRounded from "@mui/icons-material/ExpandMoreRounded";
 import FlagRounded from "@mui/icons-material/FlagRounded";
 import ReplayRounded from "@mui/icons-material/ReplayRounded";
 import SendRounded from "@mui/icons-material/SendRounded";
+import VolumeOffRounded from "@mui/icons-material/VolumeOffRounded";
+import VolumeUpRounded from "@mui/icons-material/VolumeUpRounded";
 import {
   Box,
   Button,
@@ -13,6 +15,7 @@ import {
   DialogContentText,
   DialogTitle,
   Divider,
+  MenuItem,
   Paper,
   Stack,
   TextField,
@@ -22,7 +25,7 @@ import { keyframes, type Theme } from "@mui/material/styles";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, ApiError } from "../../api/client";
-import { rememberInterview, useModels } from "../../api/queries";
+import { rememberInterview, useModels, useSpeechModels } from "../../api/queries";
 import {
   DIFFICULTY_LABELS,
   INTERVIEW_TYPE_LABELS,
@@ -34,6 +37,8 @@ import {
   type InterviewView,
   type TurnView,
 } from "../../api/types";
+import { useInterviewerVoice } from "../../voice/interviewerVoice";
+import SpokenAnswer from "../../voice/SpokenAnswer";
 import ErrorPanel from "./ErrorPanel";
 import {
   AnswerBubble,
@@ -234,6 +239,11 @@ export default function InterviewRoom({ interview }: { interview: InterviewView 
   // A question reopened for another attempt still counts: its earlier attempt stands until replaced.
   const answeredCount = turns.filter((turn) => turn.answer || turn.previousAttempts.length).length;
   const coach = setup.mode === "coach";
+  const spoken = setup.voice === "spoken";
+  const speechModels = useSpeechModels();
+  const maxRecordingSeconds = speechModels.data?.maxRecordingSeconds ?? 120;
+  const speechModelLabel = speechModels.data?.models.find((model) => model.id === setup.speechModelId)?.label ?? setup.speechModelId;
+  const voice = useInterviewerVoice(spoken, id, speechModels.data?.interviewerVoices ?? []);
 
   const [busy, setBusy] = useState<Action | null>(null);
   const [streamText, setStreamText] = useState("");
@@ -308,7 +318,12 @@ export default function InterviewRoom({ interview }: { interview: InterviewView 
     const text = answer.trim();
     if (!text) return;
     setSentAnswer(text);
-    const next = await run("answer", (onDelta) => api.stream(`/interviews/${id}/answers`, { answer: text }, onDelta));
+    voice.stop();
+    // With an unsent recording, the text is its transcription as corrected: content is judged from it, delivery from the recording.
+    const fromRecording = Boolean(last?.pendingRecording);
+    const next = await run("answer", (onDelta) =>
+      api.stream(`/interviews/${id}/answers`, { answer: text, ...(fromRecording ? { spoken: true } : {}) }, onDelta)
+    );
     setSentAnswer(null);
     if (next) setAnswer("");
   };
@@ -369,6 +384,28 @@ export default function InterviewRoom({ interview }: { interview: InterviewView 
     }
   }, [shouldAutoAsk, turns.length, askQuestion]);
 
+  // A spoken interview's questions are read aloud once each has fully arrived: one utterance flows
+  // better than sentence by sentence, as some voices pause before each one.
+  const { sayQuestion } = voice;
+  // The last question read out. One already waiting when the page opens isn't read unasked.
+  const readIndex = useRef<number | null>(last && !last.answer ? last.index : null);
+  // Held until the voices are known, so the first question isn't read by the fallback voice.
+  const voicesKnown = !spoken || !speechModels.isPending;
+  useEffect(() => {
+    if (!voicesKnown || !last || last.answer || busy === "question") return;
+    if (readIndex.current !== null && readIndex.current >= last.index) return;
+    readIndex.current = last.index;
+    void sayQuestion(last.question, last.index);
+  }, [busy, last, sayQuestion, voicesKnown]);
+
+  // After a reload, an unsent recording's transcription comes back into an empty answer box.
+  const pendingTranscription = last && !last.answer ? last.pendingRecording?.transcription : undefined;
+  useEffect(() => {
+    if (pendingTranscription && !answer) setAnswer(pendingTranscription);
+    // Only when the recording changes, so the candidate can clear the box on purpose.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingTranscription]);
+
   const streaming = streamText.length > 0;
   useEffect(() => {
     bottom.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -392,6 +429,12 @@ export default function InterviewRoom({ interview }: { interview: InterviewView 
         {INTERVIEW_TYPE_LABELS[setup.interviewType]} · {DIFFICULTY_LABELS[setup.difficulty]} · {MODE_LABELS[setup.mode].label} mode
         <br />
         Interviewer: {modelLabel}
+        {spoken && (
+          <>
+            <br />
+            Spoken answers · {speechModelLabel}
+          </>
+        )}
       </Typography>
     </Box>
   );
@@ -507,7 +550,7 @@ export default function InterviewRoom({ interview }: { interview: InterviewView 
                 return (
                   <Stack key={turn.index} id={`scene-${turn.index}`} spacing={3} sx={{ scrollMarginTop: 96, pb: open ? 3 : 0 }}>
                     <FoldButton index={turn.index} question={turn.question} open={open} onToggle={() => toggleTurn(turn.index)} />
-                    {open && <TurnTranscript turn={turn} showCoaching={coach} />}
+                    {open && <TurnTranscript turn={turn} interviewId={id} showCoaching={coach} />}
                   </Stack>
                 );
               })}
@@ -516,7 +559,7 @@ export default function InterviewRoom({ interview }: { interview: InterviewView 
 
           {last && (
             <Stack id={`scene-${last.index}`} spacing={3} sx={{ scrollMarginTop: 96 }}>
-                <TurnTranscript turn={last} showCoaching={coach} />
+                <TurnTranscript turn={last} interviewId={id} showCoaching={coach} />
                 {busy === "answer" && sentAnswer && (
                   <ScriptRow
                     line={
@@ -601,6 +644,63 @@ export default function InterviewRoom({ interview }: { interview: InterviewView 
               <Speaker color="text.primary">
                 {last?.previousAttempts.length ? `You · Attempt ${last.previousAttempts.length + 1}` : "You"}
               </Speaker>
+              {spoken && last && (
+                <Stack spacing={2} sx={{ mb: 2.5 }}>
+                  {voice.supported && (
+                    <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap" }} useFlexGap>
+                      <Button
+                        size="small"
+                        color="inherit"
+                        startIcon={<VolumeUpRounded />}
+                        disabled={voice.muted}
+                        onClick={() => void voice.sayQuestion(last.question, last.index)}
+                      >
+                        Hear the question again
+                      </Button>
+                      <Button
+                        size="small"
+                        color="inherit"
+                        startIcon={voice.muted ? <VolumeOffRounded /> : <VolumeUpRounded />}
+                        aria-pressed={voice.muted}
+                        onClick={() => voice.setMuted(!voice.muted)}
+                      >
+                        {voice.muted ? "Interviewer muted" : "Mute the interviewer"}
+                      </Button>
+                      {voice.options.length > 1 && !voice.muted && (
+                        <TextField
+                          select
+                          size="small"
+                          label="Interviewer's voice"
+                          value={voice.selected?.key ?? ""}
+                          onChange={(event) => voice.choose(event.target.value, { text: last.question, index: last.index })}
+                          sx={{ minWidth: 220 }}
+                        >
+                          {voice.options.map((option) => (
+                            <MenuItem key={option.key} value={option.key}>
+                              {option.label}
+                            </MenuItem>
+                          ))}
+                        </TextField>
+                      )}
+                    </Stack>
+                  )}
+                  {voice.fallback && voice.selected?.enhanced && !voice.muted && (
+                    <Typography variant="body2" color="text.secondary">
+                      {voice.fallback}
+                    </Typography>
+                  )}
+                  <SpokenAnswer
+                    interview={interview}
+                    turn={last}
+                    maxSeconds={maxRecordingSeconds}
+                    disabled={busy !== null}
+                    onInterview={save}
+                    onTranscribed={setAnswer}
+                    onDictated={(text) => setAnswer(answer ? `${answer.trimEnd()} ${text}` : text)}
+                    onRecordingStart={voice.stop}
+                  />
+                </Stack>
+              )}
               <TextField
                 multiline
                 minRows={6}
@@ -611,11 +711,13 @@ export default function InterviewRoom({ interview }: { interview: InterviewView 
                   if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) void submitAnswer();
                 }}
                 placeholder={
-                  last?.previousAttempts.length
-                    ? "Try again, using the feedback. Your best attempt counts in the report."
-                    : "Answer as you would out loud. Specific examples and results make the strongest answers."
+                  spoken
+                    ? "Your recorded answer appears here to check. Or type this one instead."
+                    : last?.previousAttempts.length
+                      ? "Try again, using the feedback. Your best attempt counts in the report."
+                      : "Answer as you would out loud. Specific examples and results make the strongest answers."
                 }
-                autoFocus
+                autoFocus={!spoken}
                 slotProps={{
                   htmlInput: { "aria-label": "Your answer" },
                   input: { sx: { fontSize: "1.0625rem", lineHeight: 1.7 } },

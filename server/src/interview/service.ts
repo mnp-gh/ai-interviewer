@@ -1,10 +1,14 @@
 import mongoose from "mongoose";
 import { AiUnavailableError, type AiClient } from "../ai/client";
-import type { ModelConfig, ModelRegistry } from "../ai/models";
+import { INTERVIEWER_VOICES, type ModelConfig, type ModelRegistry } from "../ai/models";
+import type { SpeechClient } from "../ai/speech";
 import { conflict, HttpError, notFound } from "../http/errors";
-import type { Meter } from "../usage/meter";
-import { InterviewModel, type InterviewDoc, type TurnDoc } from "./model";
-import { coachChatMessages, feedbackMessages, questionMessages, reportMessages, type PromptTurn } from "./prompts";
+import type { Budget, Meter } from "../usage/meter";
+import { measureDelivery } from "./delivery";
+import { InterviewModel, type InterviewDoc, type PendingRecordingDoc, type TurnDoc } from "./model";
+import { coachChatMessages, feedbackMessages, hasSpokenAttempts, questionMessages, reportMessages, type PromptTurn } from "./prompts";
+import { deleteRecordings, RecordingModel, storeRecording, type RecordingDoc } from "./recordings";
+import { withWebmDuration } from "./webm";
 import {
   MAX_COACH_MESSAGES,
   MAX_RETRIES,
@@ -21,6 +25,12 @@ const STALE_QUESTION_MS = 90_000;
 export type Deps = {
   ai: AiClient;
   registry: ModelRegistry;
+  /** Transcribes spoken answers; null when no speech provider is configured. */
+  speech?: SpeechClient | null;
+  speechRegistry?: ModelRegistry;
+  /** The enhanced interviewer voice (see INTERVIEWER_VOICE_MODEL). */
+  voiceRegistry?: ModelRegistry;
+  limits?: Pick<Budget, "recordingSeconds" | "recordingStorageBytes">;
   now?: () => Date;
 };
 
@@ -29,13 +39,22 @@ type OnDelta = (text: string) => void;
  * The usage budget for one request: `aiCalls(model)` right before each AI call throws when it's exhausted,
  * and `tokens` receives what each call used.
  */
-export type Charge = Pick<Meter, "aiCalls" | "tokens">;
+export type Charge = Pick<Meter, "aiCalls" | "tokens" | "audioCall" | "audioSeconds" | "interviewerVoice">;
+
+/** Longer questions are left to the browser's voice: Orpheus's daily quota is counted in characters. */
+const MAX_SPOKEN_QUESTION_CHARS = 600;
+
+/** Some leeway over the recording limit: the browser stops recording a moment after it. */
+const RECORDING_GRACE_SECONDS = 5;
 
 const isAsked = (turn: TurnDoc): turn is TurnDoc & { question: string } => turn.question !== null;
 
 // ---- views ----
 
+const idString = (id: mongoose.Types.ObjectId | null | undefined) => id?.toString() ?? null;
+
 export function toView(doc: InterviewDoc): InterviewView {
+  // Delivery is a kind of feedback, so mock mode holds it back until the report too.
   const hideFeedback = doc.setup.mode === "mock" && doc.status === "in_progress";
   return {
     id: doc._id.toString(),
@@ -48,7 +67,21 @@ export function toView(doc: InterviewDoc): InterviewView {
       question: turn.question,
       answer: turn.answer ?? null,
       feedback: hideFeedback ? null : (turn.feedback ?? null),
-      previousAttempts: (turn.previousAttempts ?? []).map((attempt) => ({ answer: attempt.answer, feedback: attempt.feedback })),
+      delivery: hideFeedback ? null : (turn.delivery ?? null),
+      recordingId: idString(turn.recordingId),
+      pendingRecording: turn.pendingRecording
+        ? {
+            recordingId: idString(turn.pendingRecording.recordingId),
+            transcription: turn.pendingRecording.delivery.transcription,
+            durationSeconds: turn.pendingRecording.delivery.durationSeconds,
+          }
+        : null,
+      previousAttempts: (turn.previousAttempts ?? []).map((attempt) => ({
+        answer: attempt.answer,
+        feedback: attempt.feedback,
+        delivery: attempt.delivery ?? null,
+        recordingId: idString(attempt.recordingId),
+      })),
       coachMessages: (turn.coachMessages ?? []).map(({ role, content, attempt }) => ({ role, content, attempt })),
       modelId: turn.modelId,
     })),
@@ -73,7 +106,15 @@ export function toSummary(doc: InterviewDoc): InterviewSummary {
 
 // ---- service ----
 
-export function createInterviewService({ ai, registry, now = () => new Date() }: Deps) {
+export function createInterviewService({
+  ai,
+  registry,
+  speech = null,
+  speechRegistry,
+  voiceRegistry,
+  limits = { recordingSeconds: 120, recordingStorageBytes: 350 * 1024 * 1024 },
+  now = () => new Date(),
+}: Deps) {
   async function load(candidateId: string, id: string): Promise<InterviewDoc> {
     if (!mongoose.isValidObjectId(id)) throw notFound();
     const doc = await InterviewModel.findOne({ _id: id, candidateId }).lean<InterviewDoc>();
@@ -97,6 +138,21 @@ export function createInterviewService({ ai, registry, now = () => new Date() }:
   function modelFor(doc: InterviewDoc): ModelConfig {
     const model = registry.find(doc.setup.modelId) ?? registry.defaultModel();
     if (!model) throw new AiUnavailableError(doc.setup.modelId, "No AI provider is configured on the server.");
+    return model;
+  }
+
+  /** A spoken interview's setup with its speech model checked; a typed one with none. */
+  function withVoice(setup: Setup): Setup {
+    if (setup.voice !== "spoken") return { ...setup, voice: "typed", speechModelId: null };
+    const model = setup.speechModelId ? speechRegistry?.find(setup.speechModelId) : speechRegistry?.defaultModel();
+    if (!speech || !model) throw new HttpError(400, "INVALID_REQUEST", "Spoken answers aren't available right now. Choose typed answers.");
+    return { ...setup, speechModelId: model.id };
+  }
+
+  /** The interview's speech model; falls back to the default if its provider was unconfigured since. */
+  function speechModelFor(doc: InterviewDoc): ModelConfig {
+    const model = (doc.setup.speechModelId && speechRegistry?.find(doc.setup.speechModelId)) || speechRegistry?.defaultModel();
+    if (!speech || !model) throw new AiUnavailableError(doc.setup.speechModelId ?? "none", "Spoken answers aren't available right now. Type your answer instead.");
     return model;
   }
 
@@ -126,7 +182,7 @@ export function createInterviewService({ ai, registry, now = () => new Date() }:
   return {
     async create(candidateId: string, setup: Setup): Promise<InterviewDoc> {
       requireModel(setup.modelId);
-      const doc = await InterviewModel.create({ candidateId, setup });
+      const doc = await InterviewModel.create({ candidateId, setup: withVoice(setup) });
       return doc.toObject() as InterviewDoc;
     },
 
@@ -134,7 +190,9 @@ export function createInterviewService({ ai, registry, now = () => new Date() }:
       const { setup } = await load(candidateId, id);
       const model = registry.find(setup.modelId) ?? registry.defaultModel();
       if (!model) throw new AiUnavailableError(setup.modelId, "No AI provider is configured on the server.");
-      const doc = await InterviewModel.create({ candidateId, setup: { ...setup, modelId: model.id } });
+      // Practising again keeps the voice; a speech model that has gone away falls back to the default.
+      const speechModelId = setup.voice === "spoken" && !speechRegistry?.find(setup.speechModelId ?? "") ? undefined : setup.speechModelId;
+      const doc = await InterviewModel.create({ candidateId, setup: withVoice({ ...setup, modelId: model.id, speechModelId }) });
       return doc.toObject() as InterviewDoc;
     },
 
@@ -148,6 +206,107 @@ export function createInterviewService({ ai, registry, now = () => new Date() }:
       if (!mongoose.isValidObjectId(id)) throw notFound();
       const { deletedCount } = await InterviewModel.deleteOne({ _id: id, candidateId });
       if (!deletedCount) throw notFound();
+      await RecordingModel.deleteMany({ interviewId: id });
+    },
+
+    /** A recording of one of the interview's attempts. */
+    async recording(candidateId: string, id: string, recordingId: string): Promise<Pick<RecordingDoc, "audio" | "mimeType">> {
+      const doc = await load(candidateId, id);
+      if (!mongoose.isValidObjectId(recordingId)) throw notFound();
+      // Not lean: a lean read returns the audio as a BSON Binary rather than a Buffer.
+      const recording = await RecordingModel.findOne({ _id: recordingId, interviewId: doc._id });
+      if (!recording) throw new HttpError(404, "NOT_FOUND", "This recording is no longer kept.");
+      // Written in on the way out, so recordings stored before this fix play properly too.
+      const audio = withWebmDuration(Buffer.from(recording.audio), recording.durationSeconds);
+      return { audio, mimeType: recording.mimeType };
+    },
+
+    async switchSpeechModel(candidateId: string, id: string, speechModelId: string): Promise<InterviewDoc> {
+      if (!speechRegistry?.find(speechModelId)) {
+        throw new HttpError(400, "INVALID_REQUEST", "That speech model isn't available. Choose another one.");
+      }
+      const doc = await InterviewModel.findOneAndUpdate(
+        { _id: id, candidateId, status: "in_progress", "setup.voice": "spoken" },
+        { $set: { "setup.speechModelId": speechModelId } },
+        { new: true }
+      ).lean<InterviewDoc>();
+      if (!doc) {
+        await load(candidateId, id); // 404 if it doesn't exist
+        throw conflict("Only a spoken interview in progress has a speech model");
+      }
+      return doc;
+    },
+
+    /**
+     * Spoken interviews: transcribes a recorded answer to the waiting question and measures its delivery.
+     * It is kept as the question's unsent recording (replacing any earlier one) until the answer is sent.
+     */
+    async record(candidateId: string, id: string, audio: Buffer, mimeType: string, charge: Charge): Promise<InterviewDoc> {
+      const doc = await loadInProgress(candidateId, id);
+      if (doc.setup.voice !== "spoken") throw conflict("This interview has typed answers");
+      const index = doc.turns.length - 1;
+      const last = doc.turns[index];
+      if (!last || !isAsked(last) || last.answer) throw conflict("There is no question waiting for an answer");
+
+      const model = speechModelFor(doc);
+      await charge.audioCall();
+      const transcription = await speech!.transcribe(model, audio, mimeType);
+      // Providers bill at least 10 seconds a request.
+      await charge.audioSeconds(Math.max(10, Math.ceil(transcription.duration)));
+
+      if (transcription.duration > limits.recordingSeconds + RECORDING_GRACE_SECONDS) {
+        throw new HttpError(422, "INVALID_REQUEST", `Spoken answers can be up to ${Math.round(limits.recordingSeconds / 60)} minutes long. Record a shorter one.`);
+      }
+      if (!transcription.text || !transcription.words.length) {
+        throw new HttpError(422, "INVALID_REQUEST", "We couldn't hear an answer in that recording. Check your microphone, then record again.");
+      }
+
+      const delivery = measureDelivery(transcription, model.id);
+      const recordingId = await storeRecording(doc._id, audio, mimeType, delivery.durationSeconds, limits.recordingStorageBytes);
+      const pending: PendingRecordingDoc = { recordingId, delivery, createdAt: now() };
+      const updated = await InterviewModel.findOneAndUpdate(
+        { _id: doc._id, status: "in_progress", turns: { $size: index + 1 }, [`turns.${index}.answer`]: { $type: "null" } },
+        { $set: { [`turns.${index}.pendingRecording`]: pending } },
+        { new: true }
+      ).lean<InterviewDoc>();
+      if (!updated) {
+        await deleteRecordings([recordingId]);
+        throw conflict("This question was answered while your recording was being transcribed");
+      }
+      await deleteRecordings([last.pendingRecording?.recordingId]);
+      return updated;
+    },
+
+    /**
+     * Spoken interviews: one of the interview's questions read aloud by the enhanced interviewer voice.
+     * Only questions can be read, so the endpoint can't be used to voice arbitrary text.
+     */
+    async questionSpeech(candidateId: string, id: string, index: number, voice: string, charge: Charge): Promise<Buffer> {
+      const doc = await load(candidateId, id);
+      if (doc.setup.voice !== "spoken") throw conflict("This interview has typed answers");
+      const question = doc.turns.filter(isAsked)[index]?.question;
+      if (!question) throw notFound();
+      if (!INTERVIEWER_VOICES.some((entry) => entry.id === voice)) throw new HttpError(400, "INVALID_REQUEST", "That voice isn't available.");
+      const model = voiceRegistry?.defaultModel();
+      if (!speech || !model) throw new AiUnavailableError("none", "The enhanced voice isn't available right now.");
+      if (question.length > MAX_SPOKEN_QUESTION_CHARS) throw new HttpError(422, "INVALID_REQUEST", "This question is too long for the enhanced voice.");
+      await charge.interviewerVoice(question.length);
+      return speech.speak(model, voice, question);
+    },
+
+    /** Spoken interviews: throws away the waiting question's unsent recording. */
+    async discardRecording(candidateId: string, id: string): Promise<InterviewDoc> {
+      const doc = await loadInProgress(candidateId, id);
+      const index = doc.turns.length - 1;
+      const pending = doc.turns[index]?.pendingRecording;
+      if (!pending) return doc;
+      const updated = await InterviewModel.findOneAndUpdate(
+        { _id: doc._id, turns: { $size: index + 1 } },
+        { $set: { [`turns.${index}.pendingRecording`]: null } },
+        { new: true }
+      ).lean<InterviewDoc>();
+      await deleteRecordings([pending.recordingId]);
+      return updated ?? doc;
     },
 
     async switchModel(candidateId: string, id: string, modelId: string): Promise<InterviewDoc> {
@@ -228,11 +387,21 @@ export function createInterviewService({ ai, registry, now = () => new Date() }:
      * Saves the answer to the waiting question, then generates feedback. In coach mode the feedback
      * streams through `onDelta`; in mock mode it is generated silently and a failure doesn't block the interview.
      */
-    async answer(candidateId: string, id: string, answer: string, onDelta: OnDelta, charge: Charge): Promise<InterviewDoc> {
+    async answer(
+      candidateId: string,
+      id: string,
+      answer: string,
+      onDelta: OnDelta,
+      charge: Charge,
+      /** True when the answer is the unsent recording's transcription, as the candidate corrected it. */
+      spoken = false
+    ): Promise<InterviewDoc> {
       const doc = await loadInProgress(candidateId, id);
       const index = doc.turns.length - 1;
       const last = doc.turns[index];
       if (!last || !isAsked(last) || last.answer) throw conflict("There is no question waiting for an answer");
+      const pending = last.pendingRecording ?? null;
+      if (spoken && !pending) throw conflict("That recording is no longer waiting to be sent. Record your answer again, or send it typed.");
       await charge.aiCalls(modelFor(doc)); // for the feedback
 
       const updated = await InterviewModel.findOneAndUpdate(
@@ -244,10 +413,20 @@ export function createInterviewService({ ai, registry, now = () => new Date() }:
           [`turns.${index}.answer`]: { $type: "null" },
           [`turns.${index}.question`]: { $type: "string" },
         },
-        { $set: { [`turns.${index}.answer`]: answer, [`turns.${index}.answeredAt`]: now() } },
+        {
+          $set: {
+            [`turns.${index}.answer`]: answer,
+            [`turns.${index}.answeredAt`]: now(),
+            [`turns.${index}.delivery`]: spoken ? pending!.delivery : null,
+            [`turns.${index}.recordingId`]: spoken ? pending!.recordingId : null,
+            [`turns.${index}.pendingRecording`]: null,
+          },
+        },
         { new: true }
       ).lean<InterviewDoc>();
       if (!updated) throw conflict("This question was already answered");
+      // A recording the candidate chose not to send (they typed instead) isn't kept.
+      if (!spoken && pending) await deleteRecordings([pending.recordingId]);
 
       if (updated.setup.mode === "mock") {
         try {
@@ -288,8 +467,22 @@ export function createInterviewService({ ai, registry, now = () => new Date() }:
         // Matching on answeredAt makes this a no-op for a second, racing request.
         { _id: doc._id, status: "in_progress", turns: { $size: index + 1 }, [`turns.${index}.answeredAt`]: last.answeredAt },
         {
-          $push: { [`turns.${index}.previousAttempts`]: { answer: last.answer, feedback: last.feedback, answeredAt: last.answeredAt } },
-          $set: { [`turns.${index}.answer`]: null, [`turns.${index}.answeredAt`]: null, [`turns.${index}.feedback`]: null },
+          $push: {
+            [`turns.${index}.previousAttempts`]: {
+              answer: last.answer,
+              feedback: last.feedback,
+              answeredAt: last.answeredAt,
+              delivery: last.delivery ?? null,
+              recordingId: last.recordingId ?? null,
+            },
+          },
+          $set: {
+            [`turns.${index}.answer`]: null,
+            [`turns.${index}.answeredAt`]: null,
+            [`turns.${index}.feedback`]: null,
+            [`turns.${index}.delivery`]: null,
+            [`turns.${index}.recordingId`]: null,
+          },
         },
         { new: true }
       ).lean<InterviewDoc>();
@@ -356,7 +549,11 @@ export function createInterviewService({ ai, registry, now = () => new Date() }:
 
       const model = modelFor(doc);
       await charge.aiCalls(model);
-      const report = normalizeReport(await ai.json(model, reportMessages(doc.setup, answered), reportSchema, charge.tokens), answered.length);
+      const report = normalizeReport(
+        await ai.json(model, reportMessages(doc.setup, answered as PromptTurn[]), reportSchema, charge.tokens),
+        answered.length,
+        hasSpokenAttempts(answered as PromptTurn[])
+      );
 
       const updated = await InterviewModel.findOneAndUpdate(
         { _id: doc._id, status: "in_progress" },
@@ -366,11 +563,13 @@ export function createInterviewService({ ai, registry, now = () => new Date() }:
             completedAt: now(),
             report: { ...report, modelId: model.id },
             // Drop a question still being generated; it was never shown.
-            turns: asked,
+            turns: asked.map((turn) => ({ ...turn, pendingRecording: null })),
           },
         },
         { new: true }
       ).lean<InterviewDoc>();
+      // A recording made for a question that was never answered won't be heard again.
+      if (updated) await deleteRecordings(asked.map((turn) => turn.pendingRecording?.recordingId));
       return updated ?? load(candidateId, id);
     },
   };
@@ -382,11 +581,19 @@ function restorePendingRetry<T extends TurnDoc>(turn: T): T {
   const attempts = turn.previousAttempts ?? [];
   const latest = attempts.at(-1);
   if (turn.answer || !latest) return turn;
-  return { ...turn, answer: latest.answer, feedback: latest.feedback, answeredAt: latest.answeredAt, previousAttempts: attempts.slice(0, -1) };
+  return {
+    ...turn,
+    answer: latest.answer,
+    feedback: latest.feedback,
+    answeredAt: latest.answeredAt,
+    delivery: latest.delivery ?? null,
+    recordingId: latest.recordingId ?? null,
+    previousAttempts: attempts.slice(0, -1),
+  };
 }
 
-/** Keeps one report entry per answered question, in order, and tidies scores. */
-export function normalizeReport(report: Report, answeredCount: number): Report {
+/** Keeps one report entry per answered question, in order, and tidies scores; delivery only when something was spoken. */
+export function normalizeReport(report: Report, answeredCount: number, spoken = false): Report {
   const round = (score: number) => Math.round(Math.min(10, Math.max(0, score)) * 10) / 10;
   const byIndex = new Map(report.questions.map((entry) => [entry.index, entry]));
   const questions = Array.from({ length: answeredCount }, (_, index) => {
@@ -395,5 +602,6 @@ export function normalizeReport(report: Report, answeredCount: number): Report {
       ? { ...entry, index, score: round(entry.score) }
       : { index, score: 0, note: "No assessment was produced for this answer.", strongAnswer: "" };
   });
-  return { ...report, overallScore: round(report.overallScore), questions };
+  const delivery = spoken && report.delivery ? { ...report.delivery, score: round(report.delivery.score) } : null;
+  return { ...report, overallScore: round(report.overallScore), questions, delivery };
 }

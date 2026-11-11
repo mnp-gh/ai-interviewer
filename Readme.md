@@ -4,11 +4,12 @@ Practise a job interview with an AI interviewer tailored to your resume and the 
 
 ## What it does
 
-1. **Setup.** Upload your resume (PDF or text) and paste the job description. The AI extracts your **candidate profile** and the **role requirements**, which you review and edit, shows how you **match**, and researches the company and role on the web for a **role briefing** with sources. Pick the interview type, difficulty, length, mode and interviewer model.
+1. **Setup.** Upload your resume (PDF or text) and paste the job description. The AI extracts your **candidate profile** and the **role requirements**, which you review and edit, shows how you **match**, and researches the company and role on the web for a **role briefing** with sources. Pick the interview type, difficulty, length, mode, voice and interviewer model.
 2. **Interview.** Questions stream in, tailored to you, the role and your earlier answers; about a third draw on the role briefing.
    - **Coach mode:** feedback after each answer, and you can ask the coach about it or try the question again.
    - **Mock mode:** like the real thing, with feedback only in the report.
-3. **Report.** An overall score, a score and note for each question, what a strong answer would have included, strengths, and what to work on next.
+   - **Spoken voice:** the interviewer reads each question aloud, and you answer out loud. Your recording is transcribed for you to check and correct, and **how you said it** (pace, filler words, pauses, confidence) is judged apart from what you said. Any single answer can still be typed.
+3. **Report.** An overall score, a score and note for each question, what a strong answer would have included, strengths, and what to work on next. A spoken interview adds a separate delivery score, and each spoken answer can be replayed.
 4. **History.** Reopen a report, resume an interview, practise again with the same setup, or delete. Save your history with a **passkey** or a **recovery code** to open it in another browser or after clearing your browsing data.
 
 No sign-up and no email: each browser gets an anonymous id. Everything runs on free AI tiers (Groq by default, optionally Mistral, Gemini and OpenRouter), protected by a bot check and usage budgets.
@@ -31,11 +32,12 @@ Key paths:
 | Path | What's there |
 |---|---|
 | `server/src/interview/` | Domain schemas, prompts, the interview service, the Mongo model |
-| `server/src/ai/` | Model registry (the one file to edit when free models change) and the AI client |
+| `server/src/ai/` | Model registry (the one file to edit when free models change, speech models included), the AI client and the speech client |
 | `server/src/research/` | Web search (Tavily) and role briefings |
 | `server/src/usage/meter.ts` | Usage budgets and caps |
 | `server/src/http/` | Candidate id, bot check, security headers, errors, NDJSON streaming |
 | `client/src/pages/` | Home and history, setup wizard, interview room, report |
+| `client/src/voice/` | Recording, the microphone check, the interviewer's voice and browser dictation |
 
 ## Getting started
 

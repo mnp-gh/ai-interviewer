@@ -1,5 +1,5 @@
 import mongoose, { Schema } from "mongoose";
-import type { InterviewStatus, Report, Setup } from "./schemas";
+import type { Delivery, InterviewStatus, Report, Setup } from "./schemas";
 
 // One document per interview. `setup` and `report` are validated with zod at the API boundary,
 // so Mongo stores them as plain objects.
@@ -8,6 +8,8 @@ const attemptSchema = new Schema(
     answer: { type: String, required: true },
     feedback: { type: String, default: null },
     answeredAt: { type: Date, required: true },
+    delivery: { type: Schema.Types.Mixed, default: null },
+    recordingId: { type: Schema.Types.ObjectId, default: null },
   },
   { _id: false }
 );
@@ -30,6 +32,11 @@ const turnSchema = new Schema(
     answer: { type: String, default: null },
     answeredAt: { type: Date, default: null },
     feedback: { type: String, default: null },
+    /** The latest attempt's delivery and recording, when it was spoken. */
+    delivery: { type: Schema.Types.Mixed, default: null },
+    recordingId: { type: Schema.Types.ObjectId, default: null },
+    /** A spoken answer to this question, transcribed but not sent yet. */
+    pendingRecording: { type: Schema.Types.Mixed, default: null },
     /** Earlier attempts at this question, oldest first; `answer`/`feedback` above hold the latest. */
     previousAttempts: { type: [attemptSchema], default: [] },
     coachMessages: { type: [coachMessageSchema], default: [] },
@@ -51,7 +58,21 @@ const interviewSchema = new Schema(
   { timestamps: true, collection: "practice_interviews", minimize: false }
 );
 
-export type AttemptDoc = { answer: string; feedback: string | null; answeredAt: Date };
+export type AttemptDoc = {
+  answer: string;
+  feedback: string | null;
+  answeredAt: Date;
+  /** Missing on documents written before voice existed. */
+  delivery?: Delivery | null;
+  recordingId?: mongoose.Types.ObjectId | null;
+};
+
+export type PendingRecordingDoc = {
+  /** Null when the audio wasn't kept. */
+  recordingId: mongoose.Types.ObjectId | null;
+  delivery: Delivery;
+  createdAt: Date;
+};
 
 export type CoachMessageDoc = { role: "candidate" | "coach"; content: string; attempt: number; createdAt: Date };
 
@@ -61,6 +82,9 @@ export type TurnDoc = {
   answer: string | null;
   answeredAt: Date | null;
   feedback: string | null;
+  delivery?: Delivery | null;
+  recordingId?: mongoose.Types.ObjectId | null;
+  pendingRecording?: PendingRecordingDoc | null;
   /** Missing on documents written before retries existed. */
   previousAttempts?: AttemptDoc[];
   coachMessages?: CoachMessageDoc[];

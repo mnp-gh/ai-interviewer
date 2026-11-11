@@ -1,9 +1,10 @@
 import { useQuery, type QueryClient } from "@tanstack/react-query";
 import { api } from "./client";
-import type { InterviewSummary, InterviewView, ModelOption } from "./types";
+import type { InterviewSummary, InterviewView, ModelOption, SpeechModelsResponse } from "./types";
 
 export const queryKeys = {
   models: ["models"] as const,
+  speechModels: ["speech-models"] as const,
   account: ["account"] as const,
   interviews: ["interviews"] as const,
   interview: (id: string) => ["interviews", id] as const,
@@ -13,6 +14,14 @@ export function useModels() {
   return useQuery({
     queryKey: queryKeys.models,
     queryFn: () => api.get<{ models: ModelOption[] }>("/models").then((res) => res.models),
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useSpeechModels() {
+  return useQuery({
+    queryKey: queryKeys.speechModels,
+    queryFn: () => api.get<SpeechModelsResponse>("/speech-models"),
     staleTime: 5 * 60_000,
   });
 }
