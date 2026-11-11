@@ -286,6 +286,10 @@ describe("admin recording storage", () => {
       const usage = await auth(request(app).get("/api/admin/usage")).expect(200);
       expect(usage.body.recordings).toMatchObject({ count: 1, bytes: audio.length });
       expect(usage.body.audioSeconds.used).toBe(10);
+      await candidate.get(`/api/interviews/${id}/questions/0/speech?voice=hannah`).expect(200);
+      const after = await auth(request(app).get("/api/admin/usage")).expect(200);
+      expect(after.body.interviewerVoice.used).toBe(1);
+      expect(after.body.interviewerVoiceCharacters.used).toBe("Question 1: tell me about a project you are proud of.".length);
 
       expect((await auth(request(app).delete("/api/admin/recordings?olderThanDays=1")).expect(200)).body).toEqual({ deleted: 0 });
       expect((await auth(request(app).delete("/api/admin/recordings?olderThanDays=0")).expect(200)).body).toEqual({ deleted: 1 });

@@ -12,6 +12,7 @@ const report: UsageReport = {
   searches: { used: 3, limit: 30, remaining: 27 },
   audioSeconds: { used: 1_800, limit: 25_200, remaining: 23_400 },
   interviewerVoice: { used: 30, limit: 90, remaining: 60 },
+  interviewerVoiceCharacters: { used: 3_000, limit: 3_400, remaining: 400 },
   recordings: { count: 12, bytes: 3 * 1024 * 1024, limitBytes: 350 * 1024 * 1024, oldest: "2026-10-01T09:00:00.000Z" },
   interviewsStarted: 4,
   models: [

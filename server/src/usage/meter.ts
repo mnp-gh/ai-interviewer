@@ -298,8 +298,9 @@ export type UsageCounts = {
   tokens: number;
   searches: number;
   audioSeconds: number;
-  /** Questions read by the enhanced interviewer voice. */
+  /** Questions read by the enhanced interviewer voice, and their characters. */
   voiceQuestions: number;
+  voiceCharacters: number;
   /** Tokens per model id. */
   models: Record<string, number>;
   candidates: { id: string; tokens: number; interviews: number }[];
@@ -312,7 +313,7 @@ export type UsageCounts = {
  */
 export async function usageOn(day: string, top = 50): Promise<UsageCounts> {
   const counters = await CounterModel.find({ window: day }, { key: 1, count: 1 }).lean();
-  const usage: UsageCounts = { tokens: 0, searches: 0, audioSeconds: 0, voiceQuestions: 0, models: {}, candidates: [], networks: [] };
+  const usage: UsageCounts = { tokens: 0, searches: 0, audioSeconds: 0, voiceQuestions: 0, voiceCharacters: 0, models: {}, candidates: [], networks: [] };
   const candidates = new Map<string, UsageCounts["candidates"][number]>();
   const networks = new Map<string, UsageCounts["networks"][number]>();
   const candidate = (id: string) => candidates.get(id) ?? candidates.set(id, { id, tokens: 0, interviews: 0 }).get(id)!;
@@ -327,6 +328,7 @@ export async function usageOn(day: string, top = 50): Promise<UsageCounts> {
     else if (key === "searches:global") usage.searches = count;
     else if (key === "audio:global") usage.audioSeconds = count;
     else if (key === "voice:global") usage.voiceQuestions = count;
+    else if (key === "voice-characters:global") usage.voiceCharacters = count;
     else if (subject === "model" && measure === "tokens") usage.models[id] = count;
     else if (subject === "candidate" && (measure === "tokens" || measure === "interviews")) candidate(id)[measure] = count;
     else if (subject === "ip" && (measure === "tokens" || measure === "interviews" || measure === "searches")) network(id)[measure] = count;

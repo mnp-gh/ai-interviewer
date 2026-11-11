@@ -50,6 +50,11 @@ export const adminRoutes: FastifyPluginAsync<AdminRoutesOptions> = async (
         limit: budget.voiceQuestionsGlobal,
         remaining: remaining(usage.voiceQuestions, budget.voiceQuestionsGlobal),
       },
+      interviewerVoiceCharacters: {
+        used: usage.voiceCharacters,
+        limit: budget.voiceCharactersGlobal,
+        remaining: remaining(usage.voiceCharacters, budget.voiceCharactersGlobal),
+      },
       recordings: {
         count: stored.count,
         bytes: stored.bytes,

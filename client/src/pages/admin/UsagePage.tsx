@@ -80,7 +80,8 @@ function CapTile({ title, used, limit, unit }: { title: string; used: number; li
   return (
     <Card sx={{ flex: 1, minWidth: 0 }}>
       <CardContent>
-        <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 0.5 }}>
+        {/* The status chip drops under the title when they don't fit side by side. */}
+        <Stack direction="row" useFlexGap sx={{ justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 1, mb: 0.5 }}>
           <Typography variant="body2" color="text.secondary">
             {title}
           </Typography>
@@ -482,7 +483,7 @@ export default function UsagePage() {
         <Skeleton variant="rounded" height={160} />
       ) : (
         <>
-          <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
+          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", lg: "repeat(3, minmax(0, 1fr))" }, gap: 2 }}>
             <CapTile title="AI tokens, everyone" used={data.tokens.used} limit={data.tokens.limit} unit="tokens" />
             <CapTile title="Web searches, everyone" used={data.searches.used} limit={data.searches.limit} unit="searches" />
             <CapTile
@@ -497,12 +498,18 @@ export default function UsagePage() {
               limit={data.interviewerVoice.limit}
               unit="questions"
             />
+            <CapTile
+              title="Enhanced voice characters, everyone"
+              used={data.interviewerVoiceCharacters.used}
+              limit={data.interviewerVoiceCharacters.limit}
+              unit="characters"
+            />
             <CountTile
               title="Interviews started"
               value={data.interviewsStarted}
               note={`Up to ${data.limits.interviewsPerCandidate} per candidate and ${data.limits.interviewsPerIp} per network a day`}
             />
-          </Stack>
+          </Box>
 
           <RecordingsSection recordings={data.recordings} token={token} onDeleted={() => void report.refetch()} />
 

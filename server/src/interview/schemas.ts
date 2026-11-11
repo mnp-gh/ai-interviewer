@@ -279,6 +279,8 @@ export type UsageReport = {
   audioSeconds: Allowance;
   /** Questions read by the enhanced interviewer voice. */
   interviewerVoice: Allowance;
+  /** Characters read by the enhanced interviewer voice: usually the first of its caps to run out. */
+  interviewerVoiceCharacters: Allowance;
   /** Stored recordings (all days), against the storage cap. */
   recordings: { count: number; bytes: number; limitBytes: number; oldest: string | null };
   interviewsStarted: number;
