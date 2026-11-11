@@ -27,6 +27,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { api, ApiError } from "../../api/client";
 import type { UsageReport } from "../../api/types";
+import { useDocumentTitle } from "../../components/useDocumentTitle";
 
 // The admin token stays in this tab only (sessionStorage), and only this page sends it.
 const TOKEN_KEY = "ai-interviewer.adminToken";
@@ -396,6 +397,7 @@ function TokenForm({ error, onSubmit }: { error: string | null; onSubmit: (token
 
 /** Admin: today's usage across everyone, and what's left of each daily cap. Not linked from the app. */
 export default function UsagePage() {
+  useDocumentTitle("Usage");
   const [token, setToken] = useState(readToken);
   const [day, setDay] = useState<string | null>(null); // null: today
   const [rejected, setRejected] = useState<string | null>(null);
@@ -442,10 +444,10 @@ export default function UsagePage() {
             Usage
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            {data ? `${data.day} (UTC). Daily caps reset at 00:00 UTC.` : "Loading…"}
+            {data ? `${data.day} (UTC). Daily caps reset at 00:00 UTC.` : report.isPending ? "Loading…" : "Daily caps reset at 00:00 UTC."}
           </Typography>
         </Box>
-        <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap" }}>
+        <Stack direction="row" spacing={1} useFlexGap sx={{ alignItems: "center", flexWrap: "wrap" }}>
           {data && (
             <ToggleButtonGroup
               size="small"
@@ -480,7 +482,8 @@ export default function UsagePage() {
       )}
 
       {!data ? (
-        <Skeleton variant="rounded" height={160} />
+        // On an error the alert above says so (and Refresh retries); the skeleton is only for loading.
+        report.isPending && <Skeleton variant="rounded" height={160} />
       ) : (
         <>
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", lg: "repeat(3, minmax(0, 1fr))" }, gap: 2 }}>

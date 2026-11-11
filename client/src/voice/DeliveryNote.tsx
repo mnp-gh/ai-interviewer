@@ -55,7 +55,7 @@ export default function DeliveryNote({ delivery, recordingUrl }: { delivery: Del
           {showHeard ? "Hide what the speech model heard" : "What the speech model heard"}
         </Link>
         {showHeard && (
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 1, lineHeight: 1.65, whiteSpace: "pre-wrap" }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1, lineHeight: 1.65, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
             {delivery.transcription}
           </Typography>
         )}

@@ -100,7 +100,7 @@ function SaveSection({ status }: { status: AccountStatus | undefined }) {
           {status?.hasRecoveryCode ? "Replace recovery code" : "Get a recovery code"}
         </Button>
       </Stack>
-      {savePasskey.isSuccess && <Alert severity="success">Passkey saved. Sign in with it on any device that has it.</Alert>}
+      {savePasskey.isSuccess && <Alert severity="success">Passkey saved. Restore your history with it on any device that has it.</Alert>}
       {createCode.data && <RecoveryCode code={createCode.data} />}
       <Errors errors={[savePasskey.error, createCode.error]} />
     </Stack>

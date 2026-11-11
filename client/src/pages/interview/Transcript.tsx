@@ -61,6 +61,7 @@ export const QuestionBubble = ({ index, children }: { index: number; children: R
           letterSpacing: "-0.005em",
           maxWidth: "40em",
           whiteSpace: "pre-wrap",
+          overflowWrap: "anywhere",
         }}
       >
         {children}
@@ -73,7 +74,7 @@ export const QuestionBubble = ({ index, children }: { index: number; children: R
 export const AnswerBubble = ({ label = "You", children }: { label?: string; children: ReactNode }) => (
   <Box>
     <Speaker color="text.primary">{label}</Speaker>
-    <Typography component="div" sx={{ fontSize: "1.0625rem", lineHeight: 1.7, maxWidth: "42em", whiteSpace: "pre-wrap" }}>
+    <Typography component="div" sx={{ fontSize: "1.0625rem", lineHeight: 1.7, maxWidth: "42em", whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
       {children}
     </Typography>
   </Box>
@@ -83,7 +84,7 @@ export const AnswerBubble = ({ label = "You", children }: { label?: string; chil
 export const CoachQuestionBubble = ({ children }: { children: ReactNode }) => (
   <Box>
     <Speaker>You · to the coach</Speaker>
-    <Typography component="div" sx={{ fontSize: "0.9375rem", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+    <Typography component="div" sx={{ fontSize: "0.9375rem", lineHeight: 1.6, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
       {children}
     </Typography>
   </Box>
@@ -93,7 +94,7 @@ export const CoachQuestionBubble = ({ children }: { children: ReactNode }) => (
 export const FeedbackBubble = ({ children }: { children: ReactNode }) => (
   <Box>
     <Speaker color="script.pencil">Coach</Speaker>
-    <Typography component="div" sx={{ fontSize: "0.9375rem", lineHeight: 1.65, color: "script.pencil", whiteSpace: "pre-wrap" }}>
+    <Typography component="div" sx={{ fontSize: "0.9375rem", lineHeight: 1.65, color: "script.pencil", whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
       {children}
     </Typography>
   </Box>

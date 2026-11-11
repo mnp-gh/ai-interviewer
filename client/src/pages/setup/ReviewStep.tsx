@@ -40,7 +40,8 @@ function MatchCard({ draft, update }: Props) {
   return (
     <Card sx={{ borderColor: "text.primary", borderWidth: 2 }}>
       <CardContent>
-        <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1 }}>
+        {/* The button drops under the title on a phone rather than squeezing it. */}
+        <Stack direction="row" useFlexGap sx={{ alignItems: "center", flexWrap: "wrap", gap: 1, mb: 1 }}>
           <Typography variant="h6" sx={{ flexGrow: 1 }}>
             How you match
           </Typography>

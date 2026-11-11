@@ -138,7 +138,11 @@ export default function MaterialsStep({ draft, update }: Props) {
                 tabIndex={0}
                 aria-label="Upload your resume as a PDF"
                 onClick={() => fileInput.current?.click()}
-                onKeyDown={(event) => (event.key === "Enter" || event.key === " ") && fileInput.current?.click()}
+                onKeyDown={(event) => {
+                  if (event.key !== "Enter" && event.key !== " ") return;
+                  event.preventDefault(); // Space would also scroll the page.
+                  fileInput.current?.click();
+                }}
                 onDragOver={(event) => {
                   event.preventDefault();
                   setDragging(true);
@@ -166,7 +170,7 @@ export default function MaterialsStep({ draft, update }: Props) {
                 ) : draft.resumeFileName && draft.resumeText ? (
                   <Stack spacing={0.5} sx={{ alignItems: "center" }}>
                     <CheckCircleRounded color="success" />
-                    <Typography sx={{ fontWeight: 600 }}>{draft.resumeFileName}</Typography>
+                    <Typography sx={{ fontWeight: 600, overflowWrap: "anywhere" }}>{draft.resumeFileName}</Typography>
                     <Typography variant="body2" color="text.secondary">
                       Click or drop another PDF to replace it
                     </Typography>

@@ -16,7 +16,7 @@ import {
   Typography,
 } from "@mui/material";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, type ReactNode } from "react";
+import { useId, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { botCheckHeaders } from "../../api/botCheck";
 import { api } from "../../api/client";
@@ -86,10 +86,12 @@ function ChoiceCards<T extends string>({
   );
 }
 
+/** A labelled setting; its controls are grouped under the label for screen readers. */
 function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
+  const labelId = useId();
   return (
-    <Box>
-      <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+    <Box role="group" aria-labelledby={labelId}>
+      <Typography id={labelId} variant="subtitle1" sx={{ fontWeight: 600 }}>
         {label}
       </Typography>
       {hint && (
@@ -161,7 +163,7 @@ export default function SettingsStep({ draft, update, reset }: Props) {
                 onChange={(_event, value: InterviewType | null) => value && update({ interviewType: value })}
               >
                 {(Object.keys(INTERVIEW_TYPE_LABELS) as InterviewType[]).map((type) => (
-                  <ToggleButton key={type} value={type} sx={{ px: 3 }}>
+                  <ToggleButton key={type} value={type} sx={{ px: { xs: 1.75, sm: 3 } }}>
                     {INTERVIEW_TYPE_LABELS[type]}
                   </ToggleButton>
                 ))}
@@ -176,7 +178,7 @@ export default function SettingsStep({ draft, update, reset }: Props) {
                 onChange={(_event, value: Difficulty | null) => value && update({ difficulty: value })}
               >
                 {(Object.keys(DIFFICULTY_LABELS) as Difficulty[]).map((difficulty) => (
-                  <ToggleButton key={difficulty} value={difficulty} sx={{ px: 3 }}>
+                  <ToggleButton key={difficulty} value={difficulty} sx={{ px: { xs: 1.75, sm: 3 } }}>
                     {DIFFICULTY_LABELS[difficulty]}
                   </ToggleButton>
                 ))}

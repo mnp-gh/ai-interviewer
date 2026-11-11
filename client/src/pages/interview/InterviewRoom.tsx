@@ -101,7 +101,7 @@ function SceneList({
               component="span"
               sx={{ width: 22, flexShrink: 0, fontWeight: 800, textAlign: { md: "right" }, display: "inline-flex", justifyContent: "center" }}
             >
-              {state === "done" ? <CheckRounded sx={{ fontSize: 18 }} aria-label="Answered" /> : index + 1}
+              {state === "done" ? <CheckRounded sx={{ fontSize: 18 }} titleAccess={`${index + 1}, answered`} /> : index + 1}
             </Box>
             <Box
               component="span"
@@ -408,7 +408,8 @@ export default function InterviewRoom({ interview }: { interview: InterviewView 
 
   const streaming = streamText.length > 0;
   useEffect(() => {
-    bottom.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    bottom.current?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "end" });
   }, [turns.length, streaming, busy, sentAnswer, last?.coachMessages.length]);
 
   // The question on screen: the one streaming in, the one waiting for an answer, or the last one answered.
@@ -425,7 +426,7 @@ export default function InterviewRoom({ interview }: { interview: InterviewView 
           </Box>
         )}
       </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5, lineHeight: 1.7 }}>
+      <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5, lineHeight: 1.7, overflowWrap: "anywhere" }}>
         {INTERVIEW_TYPE_LABELS[setup.interviewType]} · {DIFFICULTY_LABELS[setup.difficulty]} · {MODE_LABELS[setup.mode].label} mode
         <br />
         Interviewer: {modelLabel}
@@ -542,7 +543,8 @@ export default function InterviewRoom({ interview }: { interview: InterviewView 
         variant="outlined"
         sx={{ borderColor: "script.rule", px: { xs: 2.5, sm: 4, md: 6 }, py: { xs: 3, md: 5 }, minWidth: 0 }}
       >
-        <Stack spacing={4} aria-live="polite" divider={<Divider flexItem sx={{ borderColor: "script.rule" }} />}>
+        {/* Busy while text streams in, so screen readers read the finished line, not each fragment. */}
+        <Stack spacing={4} aria-live="polite" aria-busy={busy !== null} divider={<Divider flexItem sx={{ borderColor: "script.rule" }} />}>
           {turns.length > 1 && (
             <Stack spacing={1}>
               {turns.slice(0, -1).map((turn) => {

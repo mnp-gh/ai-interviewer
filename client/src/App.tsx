@@ -13,7 +13,7 @@ const UsagePage = lazy(() => import("./pages/admin/UsagePage"));
 function PageLoading() {
   return (
     <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
-      <CircularProgress />
+      <CircularProgress aria-label="Loading" />
     </Box>
   );
 }

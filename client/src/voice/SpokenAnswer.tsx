@@ -153,7 +153,7 @@ export default function SpokenAnswer({ interview, turn, maxSeconds, disabled, on
             {warning && ` · ${Math.max(0, Math.ceil(left))} seconds left`}
           </Typography>
         ) : uploading ? (
-          <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+          <Stack direction="row" spacing={1} role="status" sx={{ alignItems: "center" }}>
             <CircularProgress size={18} color="inherit" />
             <Typography sx={{ fontWeight: 600 }}>Transcribing…</Typography>
           </Stack>
