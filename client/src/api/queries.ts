@@ -42,6 +42,13 @@ export function useInterview(id: string) {
 
 /** Stores a fresh copy of an interview and marks the history list stale. */
 export function rememberInterview(queryClient: QueryClient, interview: InterviewView) {
-  queryClient.setQueryData(queryKeys.interview(interview.id), interview);
-  void queryClient.invalidateQueries({ queryKey: queryKeys.interviews, exact: true });
+  const queryKey = queryKeys.interview(interview.id);
+  const store = () => {
+    queryClient.setQueryData(queryKey, interview);
+    void queryClient.invalidateQueries({ queryKey: queryKeys.interviews, exact: true });
+  };
+  // A load already under way would land after this copy and replace it with an older one. Cancelling
+  // reverts the cache once the load stops, so the fresh copy is stored after that.
+  if (queryClient.isFetching({ queryKey, exact: true })) void queryClient.cancelQueries({ queryKey, exact: true }).then(store);
+  else store();
 }

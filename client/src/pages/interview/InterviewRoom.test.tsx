@@ -3,7 +3,8 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import type { InterviewView } from "../../api/types";
 import { interview, models, turn } from "../../test/fixtures";
-import { jsonResponse, mockFetch, renderWithProviders, streamResponse } from "../../test/render";
+import { queryKeys } from "../../api/queries";
+import { jsonResponse, mockFetch, renderWithProviders, streamResponse, testQueryClient } from "../../test/render";
 import InterviewPage from "./InterviewPage";
 
 const event = (value: object) => `${JSON.stringify(value)}\n`;
@@ -45,6 +46,30 @@ describe("InterviewRoom", () => {
     expect(await screen.findByText("Add a metric.")).toBeTruthy();
     expect(screen.getByRole("button", { name: /next question/i })).toBeTruthy();
     expect(screen.getByRole("button", { name: /try answering again \(2 left\)/i })).toBeTruthy();
+  });
+
+  it("keeps a question that arrives while an older copy of the interview is still loading", async () => {
+    // As after starting an interview: the page opens on the cached copy and refetches it while the
+    // first question streams in; the refetch answers last, with the interview as it was before.
+    const queryClient = testQueryClient();
+    queryClient.setQueryData(queryKeys.interview(interview().id), interview());
+    let answerStaleLoad = () => {};
+    const staleLoad = new Promise<Response>((resolve) => {
+      answerStaleLoad = () => resolve(jsonResponse({ interview: interview() }));
+    });
+    mockFetch(models200, (url, init) => {
+      if (url.endsWith(`/api/interviews/${interview().id}`) && (init.method ?? "GET") === "GET") return staleLoad;
+      if (url.endsWith("/questions")) return streamResponse([event({ type: "done", interview: interview({ turns: [turn()] }) })]);
+      return undefined;
+    });
+
+    renderWithProviders(<InterviewPage />, { route: "/interviews/:id", url: `/interviews/${interview().id}`, queryClient });
+
+    expect((await screen.findAllByText(question)).length).toBeGreaterThan(0);
+    answerStaleLoad();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(screen.getAllByText(question).length).toBeGreaterThan(0);
+    expect(screen.getByLabelText("Your answer")).toBeTruthy();
   });
 
   it("shows a busy model with a way to switch and continue", async () => {

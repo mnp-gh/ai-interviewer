@@ -8,10 +8,14 @@ import { theme } from "../theme";
 
 /**
  * Renders with the app's providers and a fresh query cache. Pass `route` (a path pattern) and `url`
- * to render `ui` as the page at that route, as the app does.
+ * to render `ui` as the page at that route, as the app does. Pass `queryClient` to start from a filled cache.
  */
-export function renderWithProviders(ui: ReactNode, { route, url }: { route?: string; url?: string } = {}) {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+export const testQueryClient = () => new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+export function renderWithProviders(
+  ui: ReactNode,
+  { route, url, queryClient = testQueryClient() }: { route?: string; url?: string; queryClient?: QueryClient } = {}
+) {
   return render(
     <ThemeProvider theme={theme}>
       <QueryClientProvider client={queryClient}>
@@ -44,7 +48,7 @@ export function streamResponse(chunks: string[], status = 200) {
 export const jsonResponse = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 
-type Route = (url: string, init: RequestInit) => Response | undefined;
+type Route = (url: string, init: RequestInit) => Response | Promise<Response> | undefined;
 
 /** Stubs fetch with a list of handlers; the first one returning a Response wins. */
 export function mockFetch(...routes: Route[]) {
