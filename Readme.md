@@ -6,7 +6,11 @@ Practise a job interview with an AI interviewer tailored to your resume and the 
 
 **Try it: [ai-interviewer.mnplabs.uk](https://ai-interviewer.mnplabs.uk)**. No sign-up; "Try a sample" fills in a resume and job description if you don't have one handy.
 
-<!-- screenshots -->
+![Coach feedback on an answer during a practice interview](docs/images/coach-feedback.png)
+
+| How you match, before the interview | The report |
+|---|---|
+| ![The review step: strengths and gaps between the resume and the role](docs/images/review.png) | ![The report: overall score, what went well and what to work on next](docs/images/report.png) |
 
 ## What it does
 
