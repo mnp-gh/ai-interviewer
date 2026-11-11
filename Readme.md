@@ -1,6 +1,7 @@
 # AI Interviewer
 
 [![CI/CD](https://github.com/mnp-gh/ai-interviewer/actions/workflows/deploy.yml/badge.svg)](https://github.com/mnp-gh/ai-interviewer/actions/workflows/deploy.yml)
+[![CodeQL](https://github.com/mnp-gh/ai-interviewer/actions/workflows/codeql.yml/badge.svg)](https://github.com/mnp-gh/ai-interviewer/actions/workflows/codeql.yml)
 
 Practise a job interview with an AI interviewer tailored to your resume and the job you want, out loud or typed, and get honest coaching on every answer.
 
@@ -73,7 +74,7 @@ deploy/   Dockerfile, Compose file and the web container's Nginx config
 - **The coach can't leak into the score.** Feedback and coach chat come from a separate role; the interviewer's prompts hold only questions and answers, and the report scores only answers ([ADR 0005](docs/adr/0005-coach-kept-apart-from-interviewer.md)).
 - **Web research treated as untrusted.** Search results are fenced as data in the prompt, points citing unknown sources are dropped, and links only ever come from the search results, never from the model ([ADR 0006](docs/adr/0006-role-briefing-from-web-search.md)).
 - **One source of truth for types.** The client imports API types from the server's zod schemas, type-only, with no shared package or code generation ([ADR 0008](docs/adr/0008-client-types-come-from-server-schemas.md)).
-- **Tests that never touch a provider.** The server's tests run against a scripted fake AI and fake speech client with an in-memory MongoDB, so they're fast, free and deterministic.
+- **Tests that never touch a provider.** The server's tests run against a scripted fake AI and fake speech client with an in-memory MongoDB, so they're fast, free and deterministic. A Playwright test drives a whole interview in Chromium against the real server with the same fakes; it caught a race where a late refetch erased a question that had just arrived.
 
 ## Trade-offs and what's next
 
@@ -104,9 +105,17 @@ Optional keys in `server/.env` switch features on: `MISTRAL_API_KEY`, `GEMINI_AP
 |---|---|
 | `pnpm dev` | Client and server with reload |
 | `pnpm test` | Server tests (fake AI, in-memory MongoDB) and client tests (jsdom) |
+| `pnpm e2e` | Builds the client and runs the Playwright end-to-end test |
 | `pnpm typecheck` / `pnpm lint` / `pnpm build` | Across both packages |
 
 Tests never call real AI providers. The first server test run downloads a MongoDB binary for the in-memory database.
+
+Beyond the unit and integration tests:
+
+- **End-to-end test:** `pnpm e2e` builds the client and runs a Playwright test in Chromium. It sets up an interview, answers every question and checks the report, against the real server with scripted AI, an in-memory MongoDB and no bot check. CI runs it on every push and pull request, and deploys wait for it.
+- **CodeQL** scans the code for security problems on pushes to `main`, on pull requests and weekly; findings appear under the Security tab.
+- **Dependabot** opens weekly update PRs for npm packages (minor and patch updates grouped) and GitHub Actions. The `dhi.io` base images are updated by hand.
+- **Uptime:** a scheduled workflow checks `/api/health` on the live site every 30 minutes and fails, which emails the repo owner, if it stays unhealthy.
 
 ## Deploying
 
