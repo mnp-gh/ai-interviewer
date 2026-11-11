@@ -87,7 +87,7 @@ function HistoryRow({
           </Box>
         </Box>
         <IconButton
-          aria-label="More actions"
+          aria-label={`More actions for ${interview.roleTitle}${interview.company ? ` at ${interview.company}` : ""}`}
           onClick={(event) => setMenuAnchor(event.currentTarget)}
           disabled={practiseAgain.isPending}
           sx={{ ml: 1 }}
@@ -153,7 +153,7 @@ function SaveHistoryNudge() {
         sx={{ mb: 2 }}
         action={
           <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
-            <Button color="inherit" size="small" onClick={() => setOpen(true)}>
+            <Button color="inherit" size="small" onClick={() => setOpen(true)} sx={{ whiteSpace: "nowrap" }}>
               Save history
             </Button>
             <IconButton size="small" color="inherit" aria-label="Dismiss" onClick={dismiss}>
@@ -184,7 +184,20 @@ export default function InterviewHistory({ asPage = false, title }: { asPage?: b
       </Stack>
     );
   }
-  if (interviews.error) return <Alert severity="error">Couldn't load your interviews: {interviews.error.message}</Alert>;
+  if (interviews.error) {
+    return (
+      <Alert
+        severity="error"
+        action={
+          <Button color="inherit" size="small" onClick={() => void interviews.refetch()}>
+            Try again
+          </Button>
+        }
+      >
+        Couldn't load your interviews: {interviews.error.message}
+      </Alert>
+    );
+  }
   if (!interviews.data.length) return null;
 
   return (
