@@ -25,8 +25,8 @@ All budgets are environment variables (see `server/.env.example`).
 
 - **Secrets stay on the server.** AI, search and database keys are only read by the API; the browser
   only ever sees the public Turnstile site key. No secret has ever been committed (history checked).
-- **Client IP can't be spoofed.** In production it comes from `CLIENT_IP_HEADER` (`X-Real-IP`, which the
-  host's Nginx overwrites), and the containers listen on localhost only. Without it (local dev)
+- **Client IP can't be spoofed.** In production it comes from `CLIENT_IP_HEADER` (`CF-Connecting-IP`, which
+  Cloudflare overwrites), and the containers listen on localhost only. Without it (local dev)
   client-supplied forwarding headers are ignored.
 - **No CORS.** The site and API share one origin, so other websites can't call the API from a browser.
 - **Security headers.** A strict Content Security Policy (own scripts plus Cloudflare's challenge only),

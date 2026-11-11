@@ -107,7 +107,7 @@ Also:
 - **Turnstile.** Add `SITE_ADDRESS` to the widget's hostnames in Cloudflare.
 - **Passkeys belong to `SITE_ADDRESS`.** Passkeys saved on another domain don't work there; recovery codes do. Pick the name once.
 - **Sharing the server with other apps.** This app owns the Compose project `ai-interviewer`, host port `127.0.0.1:8081` and its own Nginx site, and deploys only remove its own images. Another app needs its own port, `server_name` (e.g. `api.<ip with dashes>.sslip.io`) and certificate.
-- **Only localhost reaches the containers.** The API trusts the `X-Real-IP` header Nginx sets, so keep port 8081 bound to `127.0.0.1` and never publish 8080.
+- **Only localhost reaches the containers.** The API trusts the `CF-Connecting-IP` header Cloudflare sets, so keep port 8081 bound to `127.0.0.1` and never publish 8080.
 
 ### Continuous deployment
 
