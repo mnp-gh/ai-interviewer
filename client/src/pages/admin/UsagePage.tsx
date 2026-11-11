@@ -444,10 +444,10 @@ export default function UsagePage() {
             Usage
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            {data ? `${data.day} (UTC). Daily caps reset at 00:00 UTC.` : "Loading…"}
+            {data ? `${data.day} (UTC). Daily caps reset at 00:00 UTC.` : report.isPending ? "Loading…" : "Daily caps reset at 00:00 UTC."}
           </Typography>
         </Box>
-        <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap" }}>
+        <Stack direction="row" spacing={1} useFlexGap sx={{ alignItems: "center", flexWrap: "wrap" }}>
           {data && (
             <ToggleButtonGroup
               size="small"
@@ -482,7 +482,8 @@ export default function UsagePage() {
       )}
 
       {!data ? (
-        <Skeleton variant="rounded" height={160} />
+        // On an error the alert above says so (and Refresh retries); the skeleton is only for loading.
+        report.isPending && <Skeleton variant="rounded" height={160} />
       ) : (
         <>
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", lg: "repeat(3, minmax(0, 1fr))" }, gap: 2 }}>
