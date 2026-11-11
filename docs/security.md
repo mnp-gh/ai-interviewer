@@ -79,7 +79,7 @@ token is kept only in that browser tab. Days are UTC, and counters are kept two 
      this user elsewhere.
 3. **Server:** set every server variable from `server/.env.example` in the GitHub `production` environment
    (keys as secrets); each deploy writes them to `server/.env`, readable only by its owner. Keep ports
-   8080 and 8081 off the public internet: only the host's Nginx may reach the containers.
+   8080 and 8081 off the public internet: only the Cloudflare Tunnel may reach the containers.
 4. **Provider keys:** use keys created only for this app, so they can be revoked without breaking
    anything else. Leave optional providers unset if you don't want them offered.
 5. **Budgets:** check each provider's current free quota and set `DAILY_TOKENS` and `DAILY_SEARCHES`
