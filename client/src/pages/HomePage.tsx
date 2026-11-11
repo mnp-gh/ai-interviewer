@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { Speaker } from "./interview/Transcript";
 import { useInterviews } from "../api/queries";
 import InterviewHistory from "./InterviewHistory";
+import ReturningHome from "./ReturningHome";
 
 const steps: { title: string; body: string }[] = [
   {
@@ -71,7 +72,8 @@ function ExampleScript() {
 export default function HomePage() {
   const interviews = useInterviews();
   // Returning candidates come back for their interviews: give them the list, not the introduction.
-  if (interviews.isPending || interviews.data?.length) return <InterviewHistory asPage />;
+  if (interviews.isPending) return <InterviewHistory asPage />;
+  if (interviews.data?.length) return <ReturningHome interviews={interviews.data} />;
 
   return (
     <Stack spacing={{ xs: 6, md: 9 }} useFlexGap>

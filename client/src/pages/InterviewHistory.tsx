@@ -170,7 +170,7 @@ function SaveHistoryNudge() {
 }
 
 /** This browser's interviews, newest first. Renders nothing until there is at least one. */
-export default function InterviewHistory({ asPage = false }: { asPage?: boolean }) {
+export default function InterviewHistory({ asPage = false, title }: { asPage?: boolean; title?: string }) {
   const interviews = useInterviews();
   const remove = useDeleteInterview();
   const [deleting, setDeleting] = useState<string | null>(null);
@@ -196,11 +196,13 @@ export default function InterviewHistory({ asPage = false }: { asPage?: boolean 
           component={asPage ? "h1" : "h2"}
           sx={asPage ? { fontSize: { xs: "1.875rem", md: "2.5rem" } } : undefined}
         >
-          Your interviews
+          {title ?? "Your interviews"}
         </Typography>
-        <Button component={Link} to="/new" variant={asPage ? "contained" : "outlined"} color={asPage ? "primary" : "inherit"}>
-          New interview
-        </Button>
+        {!title && (
+          <Button component={Link} to="/new" variant={asPage ? "contained" : "outlined"} color={asPage ? "primary" : "inherit"}>
+            New interview
+          </Button>
+        )}
       </Stack>
       <SaveHistoryNudge />
       <Box component="ol" sx={{ listStyle: "none", m: 0, p: 0, borderBottom: 1, borderColor: "script.rule" }}>

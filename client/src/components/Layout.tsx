@@ -1,11 +1,12 @@
 import DarkModeOutlined from "@mui/icons-material/DarkModeOutlined";
 import ManageHistoryOutlined from "@mui/icons-material/ManageHistoryOutlined";
 import LightModeOutlined from "@mui/icons-material/LightModeOutlined";
-import { AppBar, Box, Button, Container, IconButton, Link, Toolbar, Tooltip, Typography } from "@mui/material";
+import { AppBar, Box, Button, Container, IconButton, Link, Toolbar, Tooltip } from "@mui/material";
 import { useColorScheme } from "@mui/material/styles";
 import { useState } from "react";
 import { Outlet, Link as RouterLink, useLocation } from "react-router-dom";
 import AccountDialog from "./AccountDialog";
+import BrandLogo from "./BrandMark";
 
 const studioButton = { color: "script.studioInk", "&:hover": { bgcolor: "rgba(255,255,255,0.08)" } } as const;
 
@@ -66,12 +67,10 @@ export default function Layout() {
               to="/"
               underline="none"
               color="inherit"
-              sx={{ display: "flex", alignItems: "center", gap: 1.25, flexGrow: 1 }}
+              aria-label="AI Interviewer, home"
+              sx={{ display: "flex", alignItems: "center", flexGrow: 1 }}
             >
-              <Box component="img" src="/favicon.svg" alt="" sx={{ width: 26, height: 26 }} />
-              <Typography component="span" sx={{ fontWeight: 800, fontSize: "1.0625rem", letterSpacing: "-0.01em" }}>
-                AI Interviewer
-              </Typography>
+              <BrandLogo />
             </Link>
             {pathname !== "/new" && pathname !== "/" && (
               <Button
