@@ -48,8 +48,8 @@ export const setupRoutes: FastifyPluginAsync<SetupRoutesOptions> = async (
     done(null, body)
   );
 
-  const parseModel = () => {
-    const model = registry.parseModel();
+  const parseModel = (preferredId?: string) => {
+    const model = (preferredId && registry.find(preferredId)) || registry.parseModel();
     if (!model) throw new AiUnavailableError("none", "No AI provider is configured on the server.");
     return model;
   };
@@ -82,13 +82,14 @@ export const setupRoutes: FastifyPluginAsync<SetupRoutesOptions> = async (
   });
 
   app.post("/parse", async (req) => {
-    const { resumeText, jobDescription } = z
+    const { resumeText, jobDescription, modelId } = z
       .object({
         resumeText: z.string().trim().min(1, "Add your resume").max(MAX_RESUME_CHARS),
         jobDescription: z.string().trim().min(1, "Add the job description").max(MAX_JOB_DESCRIPTION_CHARS),
+        modelId: z.string().optional(),
       })
       .parse(req.body);
-    const model = parseModel();
+    const model = parseModel(modelId);
     const usage = meter(req);
     await usage.aiCalls(model, 2);
 
@@ -100,10 +101,10 @@ export const setupRoutes: FastifyPluginAsync<SetupRoutesOptions> = async (
   });
 
   app.post("/match", async (req) => {
-    const { profile, requirements } = z
-      .object({ profile: candidateProfileSchema, requirements: roleRequirementsSchema })
+    const { profile, requirements, modelId } = z
+      .object({ profile: candidateProfileSchema, requirements: roleRequirementsSchema, modelId: z.string().optional() })
       .parse(req.body);
-    const model = parseModel();
+    const model = parseModel(modelId);
     const usage = meter(req);
     await usage.aiCalls(model);
 
@@ -119,12 +120,13 @@ export const setupRoutes: FastifyPluginAsync<SetupRoutesOptions> = async (
         company: z.string().trim().max(160).nullable().transform((value) => value || null),
         seniority: z.string().trim().max(80).nullable().transform((value) => value || null),
         refresh: z.boolean().optional(),
+        modelId: z.string().optional(),
       })
       .parse(req.body);
     if (!search) throw new HttpError(503, "RESEARCH_UNAVAILABLE", "Web research isn't set up on this server.");
 
     const usage = meter(req);
-    const model = parseModel();
+    const model = parseModel(subject.modelId);
     const { briefing, cached } = await researchRole({ search, ai, model }, subject, {
       refresh: subject.refresh,
       // Only a real search counts against the limits.

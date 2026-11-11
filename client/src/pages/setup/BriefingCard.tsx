@@ -113,7 +113,11 @@ export default function BriefingCard({ draft, update }: Props) {
   const research = useMutation({
     mutationFn: async (refresh: boolean) => {
       const { title, company, seniority } = cleanRequirements(requirements);
-      return api.post<{ briefing: RoleBriefing }>("/setup/research", { title, company, seniority, refresh }, await botCheckHeaders());
+      return api.post<{ briefing: RoleBriefing }>(
+        "/setup/research",
+        { title, company, seniority, refresh, modelId: draft.modelId ?? undefined },
+        await botCheckHeaders()
+      );
     },
     onSuccess: ({ briefing: next }) => update({ briefing: next, briefingFor: subjectKey }),
   });

@@ -33,7 +33,11 @@ function MatchCard({ draft, update }: Props) {
     mutationFn: async () =>
       api.post<{ match: Match }>(
         "/setup/match",
-        { profile: cleanProfile(draft.profile!), requirements: cleanRequirements(draft.requirements!) },
+        {
+          profile: cleanProfile(draft.profile!),
+          requirements: cleanRequirements(draft.requirements!),
+          modelId: draft.modelId ?? undefined,
+        },
         await botCheckHeaders()
       ),
     onSuccess: ({ match }) => update({ match, matchStale: false }),

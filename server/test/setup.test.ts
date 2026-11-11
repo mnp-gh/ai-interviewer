@@ -94,6 +94,20 @@ describe("POST /api/setup/parse and /match", () => {
     expect(ai.calls.map((call) => call.model)).toEqual(["groq:openai/gpt-oss-120b", "groq:openai/gpt-oss-120b"]);
   });
 
+  it("allows specifying a different model for parsing", async () => {
+    const { app, ai } = testApp();
+    const res = await asCandidate(app)
+      .post("/api/setup/parse", {
+        resumeText: "Jane Doe resume",
+        jobDescription: "A senior role",
+        modelId: "groq:openai/gpt-oss-20b",
+      })
+      .expect(200);
+
+    expect(res.body).toEqual({ profile, requirements });
+    expect(ai.calls.map((call) => call.model)).toEqual(["groq:openai/gpt-oss-20b", "groq:openai/gpt-oss-20b"]);
+  });
+
   it("asks for both inputs", async () => {
     const { app } = testApp();
     const res = await asCandidate(app).post("/api/setup/parse", { resumeText: "", jobDescription: "x" }).expect(400);

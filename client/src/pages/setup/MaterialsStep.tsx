@@ -19,7 +19,9 @@ import { useMutation } from "@tanstack/react-query";
 import { useRef, useState, type DragEvent } from "react";
 import { botCheckHeaders } from "../../api/botCheck";
 import { api } from "../../api/client";
+import { useModels } from "../../api/queries";
 import { MAX_PDF_BYTES, type CandidateProfile, type Match, type RoleRequirements } from "../../api/types";
+import ErrorPanel from "../../components/ErrorPanel";
 import type { Draft } from "./draft";
 
 type Props = { draft: Draft; update: (changes: Partial<Draft>) => void };
@@ -30,21 +32,26 @@ export default function MaterialsStep({ draft, update }: Props) {
   const [showText, setShowText] = useState(false);
   const [fileError, setFileError] = useState<string | null>(null);
 
+  const models = useModels();
+  const defaultModelId = models.data?.find((model) => model.isDefault)?.id ?? models.data?.[0]?.id ?? "groq:openai/gpt-oss-120b";
+  const currentModelId = draft.modelId ?? defaultModelId;
+
   const extract = useMutation({
     mutationFn: async (file: File) => api.upload<{ text: string }>("/setup/resume-text", file, await botCheckHeaders()),
     onSuccess: ({ text }, file) => update({ resumeText: text, resumeFileName: file.name }),
   });
 
   const analyze = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (overrideModelId?: string) => {
+      const activeModelId = overrideModelId ?? draft.modelId ?? undefined;
       const parsed = await api.post<{ profile: CandidateProfile; requirements: RoleRequirements }>(
         "/setup/parse",
-        { resumeText: draft.resumeText, jobDescription: draft.jobDescription },
+        { resumeText: draft.resumeText, jobDescription: draft.jobDescription, modelId: activeModelId },
         await botCheckHeaders()
       );
       // The match is a nice-to-have: if it fails, the review step offers a retry.
       const match = await botCheckHeaders()
-        .then((headers) => api.post<{ match: Match }>("/setup/match", parsed, headers))
+        .then((headers) => api.post<{ match: Match }>("/setup/match", { ...parsed, modelId: activeModelId }, headers))
         .then((res) => res.match)
         .catch(() => null);
       return { ...parsed, match };
@@ -213,7 +220,18 @@ export default function MaterialsStep({ draft, update }: Props) {
         </CardContent>
       </Card>
 
-      {analyze.error && <Alert severity="error">{analyze.error.message}</Alert>}
+      {analyze.error && (
+        <ErrorPanel
+          error={analyze.error}
+          currentModelId={currentModelId}
+          busy={analyze.isPending}
+          onRetry={() => analyze.mutate()}
+          onSwitchModel={(newModelId) => {
+            update({ modelId: newModelId });
+            analyze.mutate(newModelId);
+          }}
+        />
+      )}
 
       <Stack direction="row" spacing={2} sx={{ justifyContent: "flex-end" }}>
         {unchanged && draft.profile && (
