@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { jsonResponse, mockFetch, renderWithProviders } from "../../test/render";
 import { emptyDraft, type Draft } from "./draft";
 import MaterialsStep from "./MaterialsStep";
+import { SAMPLE_JOB_DESCRIPTION, SAMPLE_RESUME } from "./sample";
 
 const models200 = (url: string) =>
   url.endsWith("/models")
@@ -61,5 +62,38 @@ describe("MaterialsStep", () => {
     await userEvent.click(screen.getByRole("button", { name: /switch and continue/i }));
 
     expect(update).toHaveBeenCalledWith({ modelId: "mistral:mistral-small-latest" });
+  });
+
+  it("fills both fields with the sample and switches to pasted text", async () => {
+    mockFetch(models200);
+    const update = vi.fn();
+
+    renderWithProviders(<MaterialsStep draft={emptyDraft} update={update} />);
+
+    await userEvent.click(screen.getByRole("button", { name: /try a sample/i }));
+
+    expect(update).toHaveBeenCalledWith({
+      resumeSource: "paste",
+      resumeText: SAMPLE_RESUME,
+      resumeFileName: null,
+      jobDescription: SAMPLE_JOB_DESCRIPTION,
+    });
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("asks before replacing what the candidate already added", async () => {
+    mockFetch(models200);
+    const update = vi.fn();
+    const draft: Draft = { ...emptyDraft, resumeText: "Jane Doe resume" };
+
+    renderWithProviders(<MaterialsStep draft={draft} update={update} />);
+
+    await userEvent.click(screen.getByRole("button", { name: /try a sample/i }));
+    expect(update).not.toHaveBeenCalled();
+
+    await userEvent.click(await screen.findByRole("button", { name: /use the sample/i }));
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({ resumeText: SAMPLE_RESUME, jobDescription: SAMPLE_JOB_DESCRIPTION })
+    );
   });
 });
