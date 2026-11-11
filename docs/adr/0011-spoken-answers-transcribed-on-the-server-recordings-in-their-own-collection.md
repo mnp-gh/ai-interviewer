@@ -12,4 +12,4 @@ Spoken interviews judge **delivery** (pace, pauses, filler words, confidence) as
 
 - The free database holds 0.5 GB for everything. Recordings are 16 kbps (about 70 hours), the admin page shows their size and deletes old ones, and past a safety cap new answers are still judged but their audio isn't kept.
 - Audio has its own budgets alongside AI tokens ([ADR 0007](0007-usage-budgets-and-bot-check-instead-of-sign-in.md)): answers capped at 2 minutes, daily audio minutes per candidate and per IP, and a global cap under Groq's free 8 hours a day.
-- Whisper tends to drop "um" and "uh". If a prompt hint can't keep them reliably, filler words aren't counted and hesitation is judged from pauses.
+- Whisper is known to drop "um" and "uh" at times. On Groq both Whisper models kept every one in a test clip, so filler words are counted, with a prompt written in fillers to nudge it further. If real candidates show them going missing, count only pauses instead.

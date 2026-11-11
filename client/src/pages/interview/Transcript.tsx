@@ -1,7 +1,9 @@
 import { Box, Stack, Typography } from "@mui/material";
 import { keyframes } from "@mui/material/styles";
 import type { ReactNode } from "react";
-import type { TurnView } from "../../api/types";
+import { recordingUrl } from "../../api/client";
+import type { AttemptView, TurnView } from "../../api/types";
+import DeliveryNote from "../../voice/DeliveryNote";
 
 const blink = keyframes`50% { opacity: 0; }`;
 
@@ -130,15 +132,21 @@ export function ScriptRow({ line, notes }: { line: ReactNode; notes?: ReactNode 
 /** One question with every attempt at it, each attempt's feedback, and the coach chat that followed it. */
 export function TurnTranscript({
   turn,
+  interviewId,
   showCoaching,
   hideQuestion = false,
 }: {
   turn: TurnView;
+  /** For playing back recordings of spoken attempts. */
+  interviewId: string;
   showCoaching: boolean;
   /** For when the question is already shown above, as in the report. */
   hideQuestion?: boolean;
 }) {
-  const attempts = [...turn.previousAttempts, ...(turn.answer ? [{ answer: turn.answer, feedback: turn.feedback }] : [])];
+  const latest: AttemptView[] = turn.answer
+    ? [{ answer: turn.answer, feedback: turn.feedback, delivery: turn.delivery, recordingId: turn.recordingId }]
+    : [];
+  const attempts = [...turn.previousAttempts, ...latest];
   const numbered = turn.previousAttempts.length > 0;
   return (
     <Stack spacing={3}>
@@ -149,7 +157,12 @@ export function TurnTranscript({
         return (
           <ScriptRow
             key={index}
-            line={<AnswerBubble label={numbered ? `You · Attempt ${index + 1}` : "You"}>{attempt.answer}</AnswerBubble>}
+            line={
+              <Stack spacing={1.5}>
+                <AnswerBubble label={numbered ? `You · Attempt ${index + 1}` : "You"}>{attempt.answer}</AnswerBubble>
+                {attempt.delivery && <DeliveryNote delivery={attempt.delivery} recordingUrl={recordingUrl(interviewId, attempt.recordingId)} />}
+              </Stack>
+            }
             notes={
               hasNotes ? (
                 <>

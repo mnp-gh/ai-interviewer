@@ -49,6 +49,7 @@ function writeToken(token: string) {
 }
 
 const number = (value: number) => value.toLocaleString();
+const megabytes = (bytes: number) => `${(bytes / 1024 / 1024).toLocaleString(undefined, { maximumFractionDigits: 1 })} MB`;
 const percent = (used: number, limit: number) => (limit > 0 ? Math.min(100, (used / limit) * 100) : 100);
 
 /** Near or at a cap. The color always comes with an icon and a label; nothing is shown while there's room. */
@@ -286,6 +287,76 @@ function NetworksTable({ report }: { report: UsageReport }) {
   );
 }
 
+/** Space recordings take in the free database, and deleting old ones (ADR 0011). */
+function RecordingsSection({ recordings, token, onDeleted }: { recordings: UsageReport["recordings"]; token: string; onDeleted: () => void }) {
+  const [days, setDays] = useState("30");
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const olderThanDays = Number(days);
+  const valid = days.trim() !== "" && Number.isInteger(olderThanDays) && olderThanDays >= 0;
+
+  const remove = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!valid) return;
+    setPending(true);
+    setError(null);
+    try {
+      await api.delete(`/admin/recordings?olderThanDays=${olderThanDays}`, { Authorization: `Bearer ${token}` });
+      onDeleted();
+    } catch (problem) {
+      setError((problem as Error).message);
+    } finally {
+      setPending(false);
+    }
+  };
+
+  return (
+    <Section
+      title="Recordings"
+      caption="Kept in the database with their interviews. Past the cap, new spoken answers are still judged but their audio isn't kept."
+    >
+      <Card variant="outlined">
+        <CardContent>
+          <Stack spacing={2}>
+            <Box>
+              <Typography variant="h5" component="p" sx={{ fontWeight: 600 }}>
+                {megabytes(recordings.bytes)}
+                <Typography component="span" color="text.secondary">
+                  {" "}
+                  of {megabytes(recordings.limitBytes)}
+                </Typography>
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {number(recordings.count)} recordings
+                {recordings.oldest && ` · oldest ${new Date(recordings.oldest).toLocaleDateString()}`}
+              </Typography>
+            </Box>
+            <Meter used={recordings.bytes} limit={recordings.limitBytes} label="Recording storage used" />
+            <Stack component="form" onSubmit={remove} direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ alignItems: { sm: "center" } }}>
+              <TextField
+                size="small"
+                label="Older than (days)"
+                value={days}
+                onChange={(event) => setDays(event.target.value)}
+                error={!valid}
+                slotProps={{ htmlInput: { inputMode: "numeric" } }}
+                sx={{ width: { sm: 180 } }}
+              />
+              <Button type="submit" variant="outlined" color="error" disabled={!valid || !recordings.count} loading={pending}>
+                Delete recordings
+              </Button>
+            </Stack>
+            <Typography variant="caption" color="text.secondary">
+              Deleting can't be undone. Transcripts, delivery scores and reports stay.
+            </Typography>
+            {error && <Alert severity="error">{error}</Alert>}
+          </Stack>
+        </CardContent>
+      </Card>
+    </Section>
+  );
+}
+
 function TokenForm({ error, onSubmit }: { error: string | null; onSubmit: (token: string) => void }) {
   const [value, setValue] = useState("");
   const submit = (event: FormEvent) => {
@@ -414,12 +485,26 @@ export default function UsagePage() {
           <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
             <CapTile title="AI tokens, everyone" used={data.tokens.used} limit={data.tokens.limit} unit="tokens" />
             <CapTile title="Web searches, everyone" used={data.searches.used} limit={data.searches.limit} unit="searches" />
+            <CapTile
+              title="Spoken answers, everyone"
+              used={Math.round(data.audioSeconds.used / 60)}
+              limit={Math.round(data.audioSeconds.limit / 60)}
+              unit="minutes"
+            />
+            <CapTile
+              title="Enhanced voice, everyone"
+              used={data.interviewerVoice.used}
+              limit={data.interviewerVoice.limit}
+              unit="questions"
+            />
             <CountTile
               title="Interviews started"
               value={data.interviewsStarted}
               note={`Up to ${data.limits.interviewsPerCandidate} per candidate and ${data.limits.interviewsPerIp} per network a day`}
             />
           </Stack>
+
+          <RecordingsSection recordings={data.recordings} token={token} onDeleted={() => void report.refetch()} />
 
           <Section title="Models" caption="Tokens counted by this app. A model is refused here once it reaches its own cap; the app-wide cap still applies.">
             <ModelsTable models={data.models} />

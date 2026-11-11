@@ -6,7 +6,8 @@ import { afterAll, afterEach, beforeAll } from "vitest";
 import type { ZodType } from "zod";
 import { createApp, toNodeHandler, type AppOptions } from "../src/app";
 import { AiUnavailableError, type AiClient, type ChatMessage, type OnTokens } from "../src/ai/client";
-import { createModelRegistry } from "../src/ai/models";
+import { createModelRegistry, createSpeechRegistry, createVoiceRegistry } from "../src/ai/models";
+import type { SpeechClient, Transcription } from "../src/ai/speech";
 import { DEFAULT_BUDGET, type Budget } from "../src/usage/meter";
 import type { Setup, StreamEvent } from "../src/interview/schemas";
 
@@ -97,6 +98,43 @@ export const unavailable = (modelId = "groq:openai/gpt-oss-120b") =>
 
 export type FakeAi = ReturnType<typeof fakeAi>;
 
+/** A transcription of `text`, one word every half second, with a pause before any word that starts with "|". */
+export function transcriptionOf(text: string, pauseSeconds = 3): Transcription {
+  let clock = 0;
+  const words = text.split(/\s+/).filter(Boolean).map((raw) => {
+    if (raw.startsWith("|")) clock += pauseSeconds;
+    const entry = { word: raw.replace(/^\|/, ""), start: clock, end: clock + 0.4 };
+    clock += 0.5;
+    return entry;
+  });
+  return { text: words.map((entry) => entry.word).join(" "), duration: clock, words };
+}
+
+/** A scripted speech client. Records every call; transcribes every recording as `result`. */
+export function fakeSpeech(
+  result: Transcription | Error | ((audio: Buffer) => Transcription | Error) = transcriptionOf("Um I led the queued over to the new database"),
+  spoken: Buffer | Error = Buffer.from("RIFF fake wav")
+) {
+  const calls: { model: string; bytes: number; mimeType: string }[] = [];
+  const spokenCalls: { model: string; voice: string; text: string }[] = [];
+  const client: SpeechClient & { calls: typeof calls; spokenCalls: typeof spokenCalls } = {
+    calls,
+    spokenCalls,
+    async transcribe(model, audio, mimeType) {
+      calls.push({ model: model.id, bytes: audio.length, mimeType });
+      const value = typeof result === "function" ? result(audio) : result;
+      if (value instanceof Error) throw value;
+      return value;
+    },
+    async speak(model, voice, text) {
+      spokenCalls.push({ model: model.id, voice, text });
+      if (spoken instanceof Error) throw spoken;
+      return spoken;
+    },
+  };
+  return client;
+}
+
 /** All providers configured, so every model is available. */
 export const registry = createModelRegistry({
   GROQ_API_KEY: "test",
@@ -105,12 +143,16 @@ export const registry = createModelRegistry({
   OPENROUTER_API_KEY: "test",
 });
 
-export function testApp(options: Omit<AppOptions, "ai"> & { ai?: FakeAi } = {}) {
+export const speechRegistry = createSpeechRegistry({ GROQ_API_KEY: "test" });
+export const voiceRegistry = createVoiceRegistry({ GROQ_API_KEY: "test" });
+
+export function testApp(options: Omit<AppOptions, "ai" | "speech"> & { ai?: FakeAi; speech?: ReturnType<typeof fakeSpeech> } = {}) {
   const ai = options.ai ?? fakeAi();
+  const speech = options.speech ?? fakeSpeech();
   const app = toNodeHandler(
-    createApp({ registry, connect: async () => {}, search: null, verifyHuman: null, budget: DEFAULT_BUDGET, ...options, ai })
+    createApp({ registry, speechRegistry, voiceRegistry, connect: async () => {}, search: null, verifyHuman: null, budget: DEFAULT_BUDGET, ...options, ai, speech })
   );
-  return { app, ai };
+  return { app, ai, speech };
 }
 
 export const profile = {
@@ -160,6 +202,9 @@ export function asCandidate(app: TestApp, id = randomUUID()) {
     get: (url: string) => withId(request(app).get(url)),
     post: (url: string, body?: object) => withId(request(app).post(url)).send(body),
     put: (url: string, body?: object) => withId(request(app).put(url)).send(body),
+    /** POSTs raw audio, as the browser uploads a recording. */
+    upload: (url: string, audio: Buffer, type = "audio/webm;codecs=opus") =>
+      withId(request(app).post(url)).set("Content-Type", type).send(audio),
     delete: (url: string) => withId(request(app).delete(url)),
     /** POSTs to a streaming endpoint; the raw NDJSON (or JSON error) text lands in `res.body`. */
     stream: (url: string, body?: object) =>

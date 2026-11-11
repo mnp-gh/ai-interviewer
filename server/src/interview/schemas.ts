@@ -86,6 +86,9 @@ export type Difficulty = (typeof DIFFICULTIES)[number];
 export const MODES = ["coach", "mock"] as const;
 export type Mode = (typeof MODES)[number];
 
+export const VOICES = ["typed", "spoken"] as const;
+export type Voice = (typeof VOICES)[number];
+
 export const MIN_LENGTH = 3;
 export const MAX_LENGTH = 12;
 export const DEFAULT_LENGTH = 6;
@@ -113,8 +116,23 @@ export const setupSchema = z.object({
   length: z.number().int().min(MIN_LENGTH).max(MAX_LENGTH),
   mode: z.enum(MODES),
   modelId: z.string().min(1),
+  /** Optional: interviews created before voice existed are typed. */
+  voice: z.enum(VOICES).optional(),
+  /** The speech model that transcribes a spoken interview's answers; null when typed. */
+  speechModelId: z.string().min(1).nullable().optional(),
 });
 export type Setup = z.infer<typeof setupSchema>;
+
+/** What the report says about delivery; only for interviews with spoken attempts. */
+export const deliveryReportSchema = z.object({
+  score: z.number().min(0).max(10),
+  summary: text(800),
+  strengths: list(4, 300),
+  improvements: z
+    .array(z.object({ area: text(120), suggestion: text(500) }))
+    .max(4),
+});
+export type DeliveryReport = z.infer<typeof deliveryReportSchema>;
 
 export const reportSchema = z.object({
   overallScore: z.number().min(0).max(10),
@@ -132,6 +150,8 @@ export const reportSchema = z.object({
       strongAnswer: text(800),
     })
   ),
+  /** Null (or missing) when no attempt was spoken. */
+  delivery: deliveryReportSchema.nullable().optional(),
 });
 export type Report = z.infer<typeof reportSchema>;
 
@@ -139,7 +159,44 @@ export type Report = z.infer<typeof reportSchema>;
 
 export type InterviewStatus = "in_progress" | "completed";
 
-export type AttemptView = { answer: string; feedback: string | null };
+/**
+ * How a spoken attempt was said, measured from its recording and the speech model's uncorrected
+ * transcription (never from the candidate's edits).
+ */
+export type Delivery = {
+  durationSeconds: number;
+  wordCount: number;
+  wordsPerMinute: number;
+  /** Filler words heard ("um", "uh", ...) and how often. */
+  fillers: Record<string, number>;
+  fillerCount: number;
+  /** Silences of at least PAUSE_SECONDS between words. */
+  pauseCount: number;
+  longestPauseSeconds: number;
+  /** The speech model's uncorrected transcription. */
+  transcription: string;
+  speechModelId: string;
+};
+
+/** A silence between words at least this long counts as a pause. */
+export const PAUSE_SECONDS = 2;
+
+export type AttemptView = {
+  answer: string;
+  feedback: string | null;
+  /** Null for a typed attempt (and hidden in mock mode until the interview is completed). */
+  delivery: Delivery | null;
+  /** The attempt's recording, when its audio was kept. */
+  recordingId: string | null;
+};
+
+/** A spoken answer that has been transcribed but not sent yet. */
+export type PendingRecordingView = {
+  /** Null when the audio wasn't kept (storage full). */
+  recordingId: string | null;
+  transcription: string;
+  durationSeconds: number;
+};
 
 export type CoachMessageView = {
   role: "candidate" | "coach";
@@ -155,6 +212,11 @@ export type TurnView = {
   answer: string | null;
   /** Null while not yet generated, and always null in mock mode until the interview is completed. */
   feedback: string | null;
+  /** The latest attempt's delivery and recording (see AttemptView). */
+  delivery: Delivery | null;
+  recordingId: string | null;
+  /** A spoken answer to the waiting question, transcribed but not sent. */
+  pendingRecording: PendingRecordingView | null;
   /** Earlier attempts, oldest first (coach mode retries). */
   previousAttempts: AttemptView[];
   coachMessages: CoachMessageView[];
@@ -194,6 +256,14 @@ export type ModelOption = {
   isDefault: boolean;
 };
 
+/** GET /api/speech-models: what can transcribe spoken answers, and how long one may be. */
+export type SpeechModelsResponse = {
+  models: ModelOption[];
+  maxRecordingSeconds: number;
+  /** The enhanced interviewer voices; empty when off. The browser's own voices are always available. */
+  interviewerVoices: { id: string; label: string }[];
+};
+
 /** A used / limit pair for one daily cap. */
 export type Allowance = { used: number; limit: number; remaining: number };
 
@@ -205,6 +275,12 @@ export type UsageReport = {
   yesterday: string;
   tokens: Allowance;
   searches: Allowance;
+  /** Seconds of spoken answers transcribed. */
+  audioSeconds: Allowance;
+  /** Questions read by the enhanced interviewer voice. */
+  interviewerVoice: Allowance;
+  /** Stored recordings (all days), against the storage cap. */
+  recordings: { count: number; bytes: number; limitBytes: number; oldest: string | null };
   interviewsStarted: number;
   /** Configured models. `limit` and `remaining` are null for a model without its own daily cap. */
   models: { id: string; label: string; provider: string; used: number; limit: number | null; remaining: number | null }[];

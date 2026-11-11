@@ -60,6 +60,10 @@ const json = (body: unknown, headers: Record<string, string> = {}): RequestInit 
   body: JSON.stringify(body),
 });
 
+/** Where an attempt's recording plays from; null when its audio wasn't kept. */
+export const recordingUrl = (interviewId: string, recordingId: string | null) =>
+  recordingId ? `/api/interviews/${interviewId}/recordings/${recordingId}` : null;
+
 export const api = {
   async get<T>(path: string, headers: Record<string, string> = {}): Promise<T> {
     return (await send(path, { headers })).json() as Promise<T>;
@@ -71,10 +75,11 @@ export const api = {
   async put<T>(path: string, body: unknown): Promise<T> {
     return (await send(path, { ...json(body), method: "PUT" })).json() as Promise<T>;
   },
-  async delete(path: string): Promise<void> {
-    await send(path, { method: "DELETE" });
+  async delete(path: string, headers: Record<string, string> = {}): Promise<void> {
+    await send(path, { method: "DELETE", headers });
   },
-  async upload<T>(path: string, file: File, headers: Record<string, string> = {}): Promise<T> {
+  /** POSTs a file or recording as the raw body, typed by its own MIME type. */
+  async upload<T>(path: string, file: Blob, headers: Record<string, string> = {}): Promise<T> {
     return (await send(path, { method: "POST", headers: { "Content-Type": file.type, ...headers }, body: file })).json() as Promise<T>;
   },
 

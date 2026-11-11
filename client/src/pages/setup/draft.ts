@@ -8,6 +8,7 @@ import {
   type Mode,
   type RoleBriefing,
   type RoleRequirements,
+  type Voice,
 } from "../../api/types";
 
 /** Everything the setup wizard has collected so far. */
@@ -32,6 +33,8 @@ export type Draft = {
   length: number;
   mode: Mode;
   modelId: string | null;
+  voice: Voice;
+  speechModelId: string | null;
 };
 
 export const emptyDraft: Draft = {
@@ -52,6 +55,8 @@ export const emptyDraft: Draft = {
   length: DEFAULT_LENGTH,
   mode: "coach",
   modelId: null,
+  voice: "typed",
+  speechModelId: null,
 };
 
 const STORAGE_KEY = "ai-interviewer.setupDraft";

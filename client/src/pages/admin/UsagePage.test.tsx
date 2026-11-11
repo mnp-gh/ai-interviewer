@@ -10,6 +10,9 @@ const report: UsageReport = {
   yesterday: "2026-10-16",
   tokens: { used: 1_400_000, limit: 1_500_000, remaining: 100_000 },
   searches: { used: 3, limit: 30, remaining: 27 },
+  audioSeconds: { used: 1_800, limit: 25_200, remaining: 23_400 },
+  interviewerVoice: { used: 30, limit: 90, remaining: 60 },
+  recordings: { count: 12, bytes: 3 * 1024 * 1024, limitBytes: 350 * 1024 * 1024, oldest: "2026-10-01T09:00:00.000Z" },
   interviewsStarted: 4,
   models: [
     { id: "groq:openai/gpt-oss-120b", label: "GPT-OSS 120B", provider: "Groq", used: 190_000, limit: 190_000, remaining: 0 },
