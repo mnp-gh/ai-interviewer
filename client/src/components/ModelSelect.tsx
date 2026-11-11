@@ -32,7 +32,8 @@ export default function ModelSelect({
           }}
         >
           {models.map((model) => (
-            <MenuItem key={model.id} value={model.id}>
+            // Menu items don't wrap by default: long names and notes would run off a phone's screen.
+            <MenuItem key={model.id} value={model.id} sx={{ whiteSpace: "normal" }}>
               <ListItemText
                 primary={`${model.label}${model.isDefault ? " (recommended)" : ""}`}
                 secondary={`${model.provider} · ${model.note}${model.mayTrainOnInputs ? " · may train on your inputs" : ""}`}

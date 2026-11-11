@@ -84,7 +84,7 @@ function Points({
           spacing={1}
           sx={{ alignItems: "flex-start", "&:hover .remove": { opacity: 1 } }}
         >
-          <Typography variant="body2" sx={{ flexGrow: 1, py: 0.5 }}>
+          <Typography variant="body2" sx={{ flexGrow: 1, minWidth: 0, py: 0.5, overflowWrap: "anywhere" }}>
             {item.text}
             <SourceLinks ids={item.sourceIds} briefing={briefing} />
           </Typography>
@@ -140,7 +140,7 @@ export default function BriefingCard({ draft, update }: Props) {
   return (
     <Card>
       <CardContent>
-        <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 0.5 }}>
+        <Stack direction="row" useFlexGap sx={{ alignItems: "center", flexWrap: "wrap", gap: 1, mb: 0.5 }}>
           <PublicRounded />
           <Typography variant="h6" sx={{ flexGrow: 1 }}>
             Role briefing
@@ -164,7 +164,7 @@ export default function BriefingCard({ draft, update }: Props) {
 
         {research.isPending && !briefing ? (
           <Stack spacing={1}>
-            <Typography variant="body2">Searching the web for {requirements.company || "this role"}…</Typography>
+            <Typography variant="body2" role="status">Searching the web for {requirements.company || "this role"}…</Typography>
             <Skeleton variant="text" />
             <Skeleton variant="text" width="80%" />
             <Skeleton variant="text" width="60%" />
@@ -200,7 +200,7 @@ export default function BriefingCard({ draft, update }: Props) {
                 {/* Numbered by source id, so the list matches the [n] marks in the points above. */}
                 <Stack component="ul" spacing={0.25} sx={{ listStyle: "none", p: 0, m: 0 }}>
                   {briefing.sources.map((source) => (
-                    <Typography component="li" variant="caption" key={source.id}>
+                    <Typography component="li" variant="caption" key={source.id} sx={{ overflowWrap: "anywhere" }}>
                       <Box component="span" sx={{ fontWeight: 700, mr: 0.75 }}>
                         [{source.id}]
                       </Box>
