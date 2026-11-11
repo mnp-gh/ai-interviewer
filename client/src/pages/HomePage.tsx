@@ -3,6 +3,7 @@ import { Box, Button, Paper, Stack, Typography } from "@mui/material";
 import { Link } from "react-router-dom";
 import { Speaker } from "./interview/Transcript";
 import { useInterviews } from "../api/queries";
+import { useDocumentTitle } from "../components/useDocumentTitle";
 import InterviewHistory from "./InterviewHistory";
 import ReturningHome from "./ReturningHome";
 
@@ -71,6 +72,7 @@ function ExampleScript() {
 
 export default function HomePage() {
   const interviews = useInterviews();
+  useDocumentTitle(null);
   // Returning candidates come back for their interviews: give them the list, not the introduction.
   if (interviews.isPending) return <InterviewHistory asPage />;
   if (interviews.data?.length) return <ReturningHome interviews={interviews.data} />;

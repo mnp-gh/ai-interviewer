@@ -1,4 +1,5 @@
 import { Box, Step, StepLabel, Stepper, Typography } from "@mui/material";
+import { useDocumentTitle } from "../../components/useDocumentTitle";
 import { useDraft } from "./draft";
 import MaterialsStep from "./MaterialsStep";
 import ReviewStep from "./ReviewStep";
@@ -8,6 +9,7 @@ const STEPS = ["Resume & job", "Review", "Interview settings"];
 
 export default function SetupPage() {
   const { draft, update, reset } = useDraft();
+  useDocumentTitle("New practice interview");
   // A draft can only be on a later step if its earlier steps produced data.
   const step = draft.profile && draft.requirements ? draft.step : 0;
 

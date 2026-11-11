@@ -27,6 +27,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { api, ApiError } from "../../api/client";
 import type { UsageReport } from "../../api/types";
+import { useDocumentTitle } from "../../components/useDocumentTitle";
 
 // The admin token stays in this tab only (sessionStorage), and only this page sends it.
 const TOKEN_KEY = "ai-interviewer.adminToken";
@@ -396,6 +397,7 @@ function TokenForm({ error, onSubmit }: { error: string | null; onSubmit: (token
 
 /** Admin: today's usage across everyone, and what's left of each daily cap. Not linked from the app. */
 export default function UsagePage() {
+  useDocumentTitle("Usage");
   const [token, setToken] = useState(readToken);
   const [day, setDay] = useState<string | null>(null); // null: today
   const [rejected, setRejected] = useState<string | null>(null);

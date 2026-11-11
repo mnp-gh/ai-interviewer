@@ -2,6 +2,7 @@ import { Alert, Box, Button, CircularProgress, Stack } from "@mui/material";
 import { Link, useParams } from "react-router-dom";
 import { ApiError } from "../../api/client";
 import { useInterview } from "../../api/queries";
+import { useDocumentTitle } from "../../components/useDocumentTitle";
 import NotFoundPage from "../NotFoundPage";
 import ReportView from "../report/ReportView";
 import InterviewRoom from "./InterviewRoom";
@@ -9,16 +10,22 @@ import InterviewRoom from "./InterviewRoom";
 export default function InterviewPage() {
   const { id = "" } = useParams();
   const interview = useInterview(id);
+  const notFound = interview.error instanceof ApiError && interview.error.code === "NOT_FOUND";
+  const role = interview.data?.setup.requirements.title;
+  // Set here rather than only in NotFoundPage: a parent's effect runs after its child's.
+  useDocumentTitle(
+    notFound ? "Page not found" : role ? `${interview.data?.status === "completed" ? "Report" : "Interview"}: ${role}` : "Interview"
+  );
 
   if (interview.isPending) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
-        <CircularProgress />
+        <CircularProgress aria-label="Loading the interview" />
       </Box>
     );
   }
   if (interview.error) {
-    if (interview.error instanceof ApiError && interview.error.code === "NOT_FOUND") return <NotFoundPage />;
+    if (notFound) return <NotFoundPage />;
     return (
       <Stack spacing={2} sx={{ maxWidth: 600, mx: "auto" }}>
         <Alert severity="error">{interview.error.message}</Alert>
