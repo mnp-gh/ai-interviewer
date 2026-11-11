@@ -60,6 +60,14 @@ _Avoid_: GPT, engine, provider (a provider hosts models; it is not one)
 **Mode**:
 Whether feedback is shown after each answer (**Coach**) or held back until the report (**Mock**).
 
+**Voice**:
+Whether an interview is **spoken** (the interviewer reads each question aloud and the candidate answers out loud) or **typed**. Chosen at setup and fixed for the interview; in a spoken interview the candidate may still type any single answer.
+_Avoid_: Mode, audio mode, voice mode
+
+**Speech Model**:
+The AI model that turns a candidate's spoken attempt into text, chosen at setup for a spoken interview. After a failure the candidate may switch to another speech model or to the browser's own recognition; attempts the browser transcribes get no delivery judgement.
+_Avoid_: Model (that plays the interviewer), transcriber
+
 ### Keeping history
 
 **History**:
@@ -104,8 +112,20 @@ The candidate's response to a question. A turn's answer is its latest attempt.
 One answer to a question. In coach mode the candidate may retry a question after its feedback (up to two retries); the report scores the best attempt.
 _Avoid_: Try, submission
 
+**Recording**:
+The audio of one spoken attempt, kept with the interview so the candidate can replay it. One continuous take, limited in length: recording again before sending replaces it. Each retry has its own recording.
+_Avoid_: Voice note, audio answer
+
+**Content**:
+What an attempt says. For a spoken attempt, that is the text as the candidate corrected it before sending.
+_Avoid_: Substance
+
+**Delivery**:
+How a spoken attempt was said: pace, filler words, pauses and confidence. Judged from its recording and the uncorrected transcription, never from the candidate's edits; confidence is read from words and pauses, not tone of voice. Scored apart from content.
+_Avoid_: Fluency, communication, presentation
+
 **Feedback**:
-The coach's short assessment of a single attempt.
+The coach's short assessment of a single attempt: its content and, if spoken, its delivery.
 _Avoid_: Verdict, review
 
 **Coach Chat**:
@@ -113,7 +133,7 @@ A short conversation in which the candidate asks the coach about feedback on an 
 _Avoid_: Follow-up (that is the interviewer's job), conversation
 
 **Report**:
-The structured assessment of a whole interview, produced when it ends: overall score, per-question scores, strengths, and gaps with ways to improve.
+The structured assessment of a whole interview, produced when it ends: overall score, per-question scores, strengths, and gaps with ways to improve. A spoken interview's report also has a separate delivery score and notes, covering only the attempts that were spoken.
 _Avoid_: Feedback, verdict, result
 
 **Transcript**:
