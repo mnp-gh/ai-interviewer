@@ -1,6 +1,7 @@
 packages:
   - client
   - server
+  - e2e
 
 onlyBuiltDependencies:
   - "@swc/core"

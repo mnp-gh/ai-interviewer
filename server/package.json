@@ -8,7 +8,8 @@
     "build": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "lint": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests",
+    "e2e:serve": "tsx e2e/server.ts"
   },
   "dependencies": {
     "@fastify/cookie": "^11.1.3",
