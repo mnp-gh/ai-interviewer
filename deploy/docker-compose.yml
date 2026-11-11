@@ -1,5 +1,5 @@
-# Self-hosted deployment behind the host's Nginx (deploy/nginx.conf), which terminates HTTPS and
-# forwards to 127.0.0.1:8081. CI (.github/workflows/deploy.yml) builds the images and runs
+# Self-hosted deployment behind a Cloudflare Tunnel, which terminates HTTPS and forwards to
+# 127.0.0.1:8081. CI (.github/workflows/deploy.yml) builds the images and runs
 # `docker compose pull && docker compose up -d` on the server; `docker compose up -d --build` in this
 # folder builds locally (after `docker login dhi.io`, for the base images).
 # Needs a .env next to this file with SITE_ADDRESS (and optionally VITE_TURNSTILE_SITE_KEY; see .env.example),
@@ -34,6 +34,6 @@ services:
     mem_limit: 128m
     cpus: 0.1
     depends_on: [server]
-    # Localhost only: the client IP header is trusted, so nothing but the host's Nginx may reach this.
+    # Localhost only: the client IP header is trusted, so nothing but the Cloudflare Tunnel may reach this.
     ports:
       - "127.0.0.1:8081:8080"

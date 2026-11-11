@@ -7,8 +7,8 @@
 # The file uses server/.env syntax (KEY=value, # comments). Each key goes where the workflow expects it:
 #   VITE_*                              repository variable (read when the image is built; public)
 #   DHI_USERNAME, DHI_TOKEN             repository secret (pulls the Docker Hardened base images)
-#   SITE_ADDRESS, DEPLOY_HOST/USER/PATH,
-#   budgets, MAINTENANCE_MODE, PARSE_MODEL   production environment variable (plain settings)
+#   SITE_ADDRESS, budgets,
+#   MAINTENANCE_MODE, PARSE_MODEL       production environment variable (plain settings)
 #   everything else                     production environment secret (keys, connection strings, tokens)
 # Only keys in the file are set; nothing in GitHub is removed. Values are never printed.
 set -euo pipefail
@@ -21,7 +21,7 @@ REPO=$(gh repo view --json nameWithOwner -q .nameWithOwner)
 
 # Set by deploy/docker-compose.yml on the server: a value here would be ignored.
 SKIP='^(HOST|PORT|PUBLIC_ORIGIN|CLIENT_IP_HEADER)$'
-PLAIN='^(SITE_ADDRESS|DEPLOY_HOST|DEPLOY_USER|DEPLOY_PATH|DAILY_[A-Z_]+|AI_CALLS_PER_MINUTE|ACCOUNT_ACTIONS_PER_MINUTE|MAINTENANCE_MODE|PARSE_MODEL)$'
+PLAIN='^(SITE_ADDRESS|DAILY_[A-Z_]+|AI_CALLS_PER_MINUTE|ACCOUNT_ACTIONS_PER_MINUTE|MAINTENANCE_MODE|PARSE_MODEL)$'
 
 echo "Setting $FILE on $REPO ($ENVIRONMENT):"
 while IFS= read -r line || [ -n "$line" ]; do

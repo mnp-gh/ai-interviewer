@@ -5,7 +5,7 @@ The interviewer can be any of several free models across Groq, Mistral, Google G
 ## Consequences
 
 - The candidate picks the model at setup and it stays fixed for that interview, so the report is consistent; it's recorded on each turn and on the report.
-- Parsing (profile, requirements, match, role briefing) always uses one fixed model (`PARSE_MODEL`, default Groq `gpt-oss-120b`), because it must return reliable JSON before the candidate has picked anything.
+- Parsing (profile, requirements, match, role briefing) uses one fixed model (`PARSE_MODEL`, default Groq `gpt-oss-120b`), because it must return reliable JSON before the candidate has picked anything. Once the candidate has picked a model, or switched after a parsing failure, parsing uses that one instead.
 - When a model fails, the candidate sees a clear error with Try again and a model switcher; the app never switches silently.
 - JSON output uses `json_object` mode plus zod validation and one repair round, not provider-specific strict schemas, so it works the same across providers.
 - OpenRouter's free models share a small daily cap across the whole app; they're included at the product owner's request and rely on the switch-model fallback.

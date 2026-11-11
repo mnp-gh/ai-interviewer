@@ -43,7 +43,7 @@ harder-to-reverse ones also have a decision record in [`adr/`](adr/). Terms such
 | Model list | Groq `gpt-oss-120b`, `qwen3.8-27b`, `gpt-oss-20b`; Mistral Small; Gemini 3.5 Flash-Lite; OpenRouter Nemotron 3 Super and Gemma 4 31B. Kept in one config file. | Checked against providers' docs in October 2026; Llama 3.x on Groq and GitHub Models had been retired. |
 | Training notice | Models whose provider's free tier **may train on inputs** (Mistral, Gemini, OpenRouter) show a notice when picked. | Resumes are personal data; candidates should know. |
 | When the model is chosen | At setup, **fixed for the interview**, recorded on each turn and on the report. | Keeps the report consistent. |
-| Parsing model | Always the fixed default (`PARSE_MODEL`), regardless of the candidate's choice. | Parsing happens before the choice and needs reliable JSON. |
+| Parsing model | The fixed parse model (`PARSE_MODEL`, default Groq `gpt-oss-120b`) on a first Analyse; the candidate's chosen model if one is already picked (going back a step, practising again) or after switching models when parsing fails. | Parsing happens before the choice and needs reliable JSON; switching is the way out when the default's free quota runs out. |
 | Prompts | All in one module, `server/src/interview/prompts.ts`. | Easy to tune in one place. |
 
 ## Role briefing (web research)
@@ -73,7 +73,7 @@ harder-to-reverse ones also have a decision record in [`adr/`](adr/). Terms such
 
 | Decision | Choice | Why |
 |---|---|---|
-| Hosting | **Docker Compose** on a free Oracle Cloud VM, deployed by GitHub Actions on every push to `main`: the API plus an Nginx container serving the client and proxying `/api`, behind the host's Nginx and Certbot. | Still one origin and no CORS; a long-running server with no function time limits; HTTPS stays with the VM's existing Nginx ([ADR 0003](adr/0003-docker-on-one-vm.md)). Caddy was tried for the web container, but its main draw, automatic HTTPS, is the host's job here, so one web server everywhere won. |
+| Hosting | **Docker Compose** on a free Oracle Cloud VM, deployed by GitHub Actions on every push to `main` (images built on a hosted arm64 runner, deployed by a self-hosted runner on the VM): the API plus an Nginx container serving the client and proxying `/api`, behind a **Cloudflare Tunnel**. | Still one origin and no CORS; a long-running server with no function time limits; Cloudflare terminates HTTPS and the VM opens no inbound ports ([ADR 0003](adr/0003-docker-on-one-vm.md)). Caddy was tried for the web container, but its main draw, automatic HTTPS, is Cloudflare's job here. |
 | Server framework | **Fastify** (replaced Express). Plugins scope hooks and parsers to where they apply: the PDF parser only on setup routes, the database connection only on routes that need it. | Product owner's choice. Fastify is faster and its encapsulated plugins fit the API's shape; request validation stays with zod, so the change was confined to the HTTP layer. |
 | Database | **MongoDB Atlas (free tier)**, one document per interview (recordings kept apart); old data discarded. | Mongoose was already in use, and the document shape fits ([ADR 0002](adr/0002-one-document-per-interview.md)). |
 | Repository | **pnpm workspace** (`client`, `server`) on **Node 24+**, with a committed lockfile. | One install and consistent versions everywhere. Node 20 reached end of life in April 2026. |
@@ -81,8 +81,8 @@ harder-to-reverse ones also have a decision record in [`adr/`](adr/). Terms such
 | Shared types | The client imports API types from the server's schemas. | One source of truth ([ADR 0008](adr/0008-client-types-come-from-server-schemas.md)). |
 | Streaming format | **NDJSON over POST.** | Works with request bodies and through plain HTTP proxies ([ADR 0009](adr/0009-ndjson-streaming-over-post.md)). |
 | Tests | **Vitest** with a scripted fake AI and an in-memory MongoDB; no real AI calls in tests. | Fast, free and deterministic. |
-| Workflow | Work on the `refine` branch in logical commits, **not pushed** until the product owner says so. | Reviewable history; nothing published by surprise. |
+| Workflow | A branch and pull request per change, in logical commits; CI must pass before merging, and merging to `main` deploys. | Reviewable history, and `main` is always what's live. |
 
 ## Still open
 
-- **Go live.** The app runs on the Oracle VM; still needed: ports 80/443 opened in the OCI Security List, an HTTPS certificate, the CI deploy key, and Turnstile keys (see the README's deployment section and the release checklist in [`security.md`](security.md)).
+- **Multi-column and scanned PDFs.** Resume text comes from the PDF's text layer, so two-column layouts can come out interleaved and scanned resumes have none. A vision model (Groq Qwen 3.8 27B reads images) could read the pages instead; left out for now as not worth the effort and tokens. Pasting the text works around both.
