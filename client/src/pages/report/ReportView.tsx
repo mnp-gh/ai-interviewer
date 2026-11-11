@@ -93,9 +93,16 @@ export default function ReportView({ interview }: { interview: InterviewView }) 
               }}
             >
               <Box>
-                <Stack direction="row" spacing={1} sx={{ alignItems: "baseline" }}>
+                {/* A label on the plain text isn't read out; one on the pair, as an image, is. */}
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  role="img"
+                  aria-label={`Overall score ${report.overallScore} out of 10`}
+                  sx={{ alignItems: "baseline" }}
+                >
                   <Typography
-                    aria-label={`Overall score ${report.overallScore} out of 10`}
+                    aria-hidden
                     sx={{
                       fontSize: { xs: 64, md: 88 },
                       fontWeight: 800,
