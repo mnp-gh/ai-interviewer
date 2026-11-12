@@ -119,6 +119,8 @@ Beyond the unit and integration tests:
 
 ## Deploying
 
+Every service the app uses, its plan, the configuration and how to operate it are in [docs/deployment.md](docs/deployment.md).
+
 `deploy/docker-compose.yml` runs two containers, built from `deploy/Dockerfile` on [Docker Hardened Images](https://docs.docker.com/dhi/) (non-root, no shell): the API (`server`) and Nginx (`web`, configured by `deploy/web.conf`), which serves the built client, sets the Content Security Policy and security headers, and proxies `/api` to the API. Only `web` publishes a port, and only on `127.0.0.1:8081`. A [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) on the VM forwards the site's hostname to it, so Cloudflare terminates HTTPS, the VM opens no inbound ports, and the site and API share one origin.
 
 The server holds only what each deploy writes:
@@ -178,6 +180,7 @@ Names starting with `DEPLOY_`, `DHI_` or `VITE_` stay out of `server/.env`. Valu
 
 ## Documentation
 
+- [Deployment](docs/deployment.md): the services the app runs on, their free-tier limits, configuration and operations
 - [Decisions](docs/decisions.md): every product and technical decision, and why
 - [Decision records](docs/adr/): the bigger, harder-to-reverse choices in more depth
 - [Security](docs/security.md): abuse protection, known limits, and the release checklist
