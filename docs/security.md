@@ -29,7 +29,8 @@ All budgets are environment variables (see `server/.env.example`).
   Cloudflare overwrites), and the containers listen on localhost only. Without it (local dev)
   client-supplied forwarding headers are ignored.
 - **No CORS.** The site and API share one origin, so other websites can't call the API from a browser.
-- **Security headers.** A strict Content Security Policy (own scripts plus Cloudflare's challenge only),
+- **Security headers.** A strict Content Security Policy (own scripts plus Cloudflare's challenge and the
+  Web Analytics beacon Cloudflare injects, which reports to `cloudflareinsights.com`),
   HSTS, no framing, `nosniff` (`deploy/web.conf`); the API adds `no-store` and hides the framework.
 - **Input validation.** Every request body is validated (zod), ids are format-checked, PDFs are capped
   at 4 MB and 20 pages and discarded after text extraction.
