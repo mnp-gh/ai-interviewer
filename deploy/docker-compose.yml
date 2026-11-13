@@ -9,6 +9,7 @@ name: ai-interviewer
 
 services:
   server:
+    container_name: ai-interviewer-server
     image: ${IMAGE_REPO:-ai-interviewer}/server:${IMAGE_TAG:-latest}
     build: { context: .., dockerfile: deploy/Dockerfile, target: server }
     restart: unless-stopped
