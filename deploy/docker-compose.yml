@@ -21,6 +21,8 @@ services:
       PUBLIC_ORIGIN: https://${SITE_ADDRESS:?set SITE_ADDRESS in .env}
       CLIENT_IP_HEADER: cf-connecting-ip
     # No published ports: only the web container can reach the API.
+    networks:
+      - default
 
   web:
     image: ${IMAGE_REPO:-ai-interviewer}/web:${IMAGE_TAG:-latest}
@@ -30,10 +32,20 @@ services:
       target: web
       args:
         VITE_TURNSTILE_SITE_KEY: ${VITE_TURNSTILE_SITE_KEY:-}
+    container_name: ai-interviewer-web
     restart: unless-stopped
     mem_limit: 128m
     cpus: 0.1
     depends_on: [server]
-    # Localhost only: the client IP header is trusted, so nothing but the Cloudflare Tunnel may reach this.
+    # Retained for zero-downtime transition; remove once Cloudflare Tunnel points to ai-interviewer-web:8080
     ports:
       - "127.0.0.1:8081:8080"
+    networks:
+      - default
+      - web-gateway
+
+networks:
+  default:
+  web-gateway:
+    name: web-gateway
+    external: true
