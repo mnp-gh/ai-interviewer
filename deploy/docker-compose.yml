@@ -22,6 +22,12 @@ services:
       PUBLIC_ORIGIN: https://${SITE_ADDRESS:?set SITE_ADDRESS in .env}
       CLIENT_IP_HEADER: cf-connecting-ip
     # No published ports: only the web container can reach the API.
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:8080/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 2s
+      timeout: 2s
+      retries: 5
+      start_period: 3s
     networks:
       - default
 
@@ -37,7 +43,9 @@ services:
     restart: unless-stopped
     mem_limit: 128m
     cpus: 0.1
-    depends_on: [server]
+    depends_on:
+      server:
+        condition: service_healthy
     # Retained for zero-downtime transition; remove once Cloudflare Tunnel points to ai-interviewer-web:8080
     ports:
       - "127.0.0.1:8081:8080"
