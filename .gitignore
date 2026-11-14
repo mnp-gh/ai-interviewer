@@ -6,4 +6,3 @@ node_modules
 .env.production
 test-results
 playwright-report
-newrelic_agent.log
