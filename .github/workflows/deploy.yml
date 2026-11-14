@@ -136,6 +136,7 @@ jobs:
           SECRETS: ${{ toJSON(secrets) }}
           VARS: ${{ toJSON(vars) }}
           SITE_ADDRESS: ${{ vars.SITE_ADDRESS }}
+          NEW_RELIC_LICENSE_KEY: ${{ secrets.NEW_RELIC_LICENSE_KEY }}
         run: |
           test -n "$SITE_ADDRESS" || { echo "::error::Set the SITE_ADDRESS variable in the production environment"; exit 1; }
           umask 077
@@ -147,6 +148,9 @@ jobs:
             | to_entries[]
             | select(.key | test("^(DEPLOY_|DHI_|VITE_|SITE_ADDRESS$|github_token$)") | not)
             | if (.value | test("\n")) then error("\(.key) spans several lines") else "\(.key)=\(.value)" end' > "$DEPLOY_PATH/server/.env"
+          if [ -n "$NEW_RELIC_LICENSE_KEY" ]; then
+            echo "NEW_RELIC_LICENSE_KEY=$NEW_RELIC_LICENSE_KEY" >> "$DEPLOY_PATH/server/.env"
+          fi
           echo "Server variables: $(cut -d= -f1 "$DEPLOY_PATH/server/.env" | sort | tr '\n' ' ')"
       - name: Copy the compose file
         run: cp deploy/docker-compose.yml "${HOME}/ai-interviewer/deploy/"

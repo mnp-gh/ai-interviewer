@@ -34,9 +34,10 @@ ENV NODE_ENV=production HOST=0.0.0.0 PORT=8080
 WORKDIR /app
 COPY --from=server-deps /app ./
 COPY server/src server/src
+COPY server/newrelic.cjs server/newrelic.cjs
 WORKDIR /app/server
 EXPOSE 8080
-CMD ["node", "--import", "tsx", "src/index.ts"]
+CMD ["node", "--import", "newrelic/esm-loader.mjs", "-r", "newrelic", "--import", "tsx", "src/index.ts"]
 
 FROM dhi.io/nginx:1 AS web
 # A complete nginx.conf: the image runs as non-root, so it listens on 8080 and keeps its files in /tmp.

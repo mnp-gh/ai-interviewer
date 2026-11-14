@@ -21,6 +21,8 @@ services:
     environment:
       PUBLIC_ORIGIN: https://${SITE_ADDRESS:?set SITE_ADDRESS in .env}
       CLIENT_IP_HEADER: cf-connecting-ip
+      NEW_RELIC_APP_NAME: ai-interviewer-api
+      NEW_RELIC_DISTRIBUTED_TRACING_ENABLED: "true"
     # No published ports: only the web container can reach the API.
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:8080/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
